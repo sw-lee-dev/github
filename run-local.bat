@@ -64,11 +64,14 @@ goto :eof
 
 
 REM ------------------------------------------------------------
-REM  find_npm : npm on PATH, Program Files\nodejs or C:\aondev\node*
+REM  find_npm : full path of npm.cmd on PATH, Program Files\nodejs or C:\aondev\node*
+REM    Always keep the full path. Calling a quoted bare name such as "npm"
+REM    makes npm.cmd resolve its own folder wrongly (looks under web\node_modules).
 REM ------------------------------------------------------------
 :find_npm
 set "NPM_CMD="
-where npm >nul 2>nul && (set "NPM_CMD=npm" & exit /b 0)
+for /f "delims=" %%n in ('where npm.cmd 2^>nul') do if not defined NPM_CMD set "NPM_CMD=%%n"
+if defined NPM_CMD exit /b 0
 if exist "%ProgramFiles%\nodejs\npm.cmd" call :use_node "%ProgramFiles%\nodejs"
 if defined NPM_CMD exit /b 0
 for /d %%n in ("C:\aondev\node*") do if not defined NPM_CMD if exist "%%~n\npm.cmd" call :use_node "%%~n"
