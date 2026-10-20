@@ -1,0 +1,109 @@
+:root {
+  --brand: #1f6f5c;
+  --brand-dark: #175546;
+  --raw: #2f7d6d;
+  --pack: #d39b2a;
+  --labor: #5b6fb3;
+  --overhead: #9a8f86;
+}
+
+body {
+  background: #f4f6f5;
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  word-break: keep-all;
+}
+
+.app-navbar { background: var(--brand); }
+.app-navbar .nav-link.active { font-weight: 600; }
+.text-brand { color: var(--brand); }
+
+.btn-brand {
+  --bs-btn-color: #fff;
+  --bs-btn-bg: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--brand-dark);
+  --bs-btn-hover-border-color: var(--brand-dark);
+  --bs-btn-active-bg: var(--brand-dark);
+  --bs-btn-disabled-bg: var(--brand);
+  --bs-btn-disabled-border-color: var(--brand);
+}
+
+/* 로그인 */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: linear-gradient(160deg, #e5efec, #f4f6f5);
+}
+.login-card { width: 100%; max-width: 400px; }
+
+/* 원가 요약 */
+.kpi-label { font-size: .8rem; color: var(--bs-secondary-color); }
+.kpi-value { font-size: 1.35rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi-value small { font-size: .8rem; font-weight: 400; margin-left: 2px; }
+.cost-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: #e9ecef; }
+.legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+.bar-raw { background: var(--raw); color: #fff; }
+.bar-pack { background: var(--pack); color: #fff; }
+.bar-labor { background: var(--labor); }
+.bar-overhead { background: var(--overhead); }
+
+/* 결재선 */
+.approval-line { display: flex; flex-wrap: wrap; gap: 8px; }
+.approval-cell {
+  min-width: 110px;
+  flex: 0 1 140px;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+  background: #fff;
+}
+.approval-cell.step-pending { border-color: var(--bs-warning); box-shadow: 0 0 0 2px rgba(255, 193, 7, .25); }
+.approval-cell.step-approved { border-color: var(--bs-success); }
+.approval-cell.step-rejected { border-color: var(--bs-danger); }
+.approval-role { font-size: .75rem; color: var(--bs-secondary-color); }
+.approval-name { font-weight: 600; margin: 2px 0 4px; }
+.approval-time { font-size: .7rem; color: var(--bs-secondary-color); margin-top: 4px; }
+
+/* 배합표 입력 행: PC는 한 줄, 모바일은 2열 */
+.item-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 2.2fr) 1.4fr 1fr .8fr 1fr 36px;
+  gap: 6px;
+  align-items: center;
+}
+.unit-label { min-width: 46px; justify-content: center; }
+@media (max-width: 767.98px) {
+  .item-grid.item-row {
+    grid-template-columns: 1fr 1fr;
+    padding: 8px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    background: #fafbfa;
+  }
+  .item-grid.item-row > select { grid-column: 1 / -1; }
+  .item-amount::before { content: '금액 '; color: var(--bs-secondary-color); font-weight: 400; }
+}
+
+/* 모바일 결재 버튼 하단 고정 */
+.action-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1px solid var(--bs-border-color);
+  z-index: 1030;
+}
+@media (max-width: 767.98px) {
+  .has-action-bar { padding-bottom: 72px; }
+}
+
+td, th { font-variant-numeric: tabular-nums; }

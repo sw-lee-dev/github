@@ -1,0 +1,163 @@
+# 식품 제조원가 결재 시스템
+
+원가담당자가 제품별 **제조원가계산서**를 작성하고, 팀장 → 공장장 → 임원 순으로 **전자결재**하는 웹앱입니다.
+결재 화면은 반응형이라 휴대폰 브라우저에서도 승인/반려할 수 있습니다.
+
+| 구분 | 기술 |
+| --- | --- |
+| 백엔드 | Java 17+ (17/21/25 테스트 완료), Spring Boot 3.3, Spring Data JPA, Spring Security + JWT, H2(개발용) |
+| 웹 | React 18, TypeScript, Vite, React Router, Bootstrap 5 |
+
+```
+food-cost-approval/
+├── backend/       Spring Boot REST API (포트 8090)
+├── web/           React 웹앱
+├── release/       미리 빌드된 실행 jar
+├── scripts/       find-jdk.cmd (JDK 자동 탐색)
+├── start.bat/.sh  미리 빌드된 jar 실행 (JDK 만 필요)
+└── run-local.bat/.sh  빌드 + 실행
+```
+
+## 실행 방법
+
+필요: **JDK 17 이상(21 권장)**. 소스를 다시 빌드할 때만 Node.js 20+ 가 필요합니다.
+
+### 가장 간단한 실행: `start.bat` (JDK 만 있으면 됨)
+
+zip 배포본에는 미리 빌드된 `release/food-cost-approval.jar` 가 들어 있어 Node.js·Maven·인터넷 없이 실행됩니다.
+(Git 저장소에는 jar 를 올리지 않으므로, clone 한 경우 `run-local.bat` 을 한 번 실행해 빌드한 뒤 `start.bat` 을 쓰세요.)
+
+```bat
+start.bat              :: Windows → http://localhost:8090
+start.bat 9000         :: 다른 포트
+./start.sh             # macOS / Linux
+```
+
+### 소스를 고친 뒤 다시 빌드해서 실행: `run-local.bat`
+
+웹 화면 빌드 → 백엔드 패키징(웹 포함) → 실행까지 한 번에 합니다.
+
+```bat
+run-local.bat          :: Windows
+./run-local.sh         # macOS / Linux
+```
+
+- **JDK**: `C:\aondev\jdk-21` → `JAVA_HOME` → PATH → `Program Files\Java`, `Eclipse Adoptium`, `%USERPROFILE%\.jdks` 순서로 자동 탐색
+  (`scripts/find-jdk.cmd`). 다른 위치면 배치 파일의 `PREFERRED_JDK` 한 줄을 고치세요.
+- **Node.js**: PATH, `Program Files\nodejs`, `C:\aondev\node*` 에서 찾고, 없으면 미리 빌드된 `web/dist` 를 그대로 씁니다.
+  화면(React) 소스를 고쳤다면 Node.js 20+ 가 필요합니다.
+- **Maven**: 설치 불필요. `mvnw` 가 처음 한 번 내려받습니다(인터넷 필요).
+
+> **JDK 가 없다면**: cmd 에서 `winget install EclipseAdoptium.Temurin.21.JDK` 또는 https://adoptium.net 에서
+> Temurin 21 LTS 설치 후 **새 cmd 창**에서 다시 실행하세요.
+
+빌드한 jar 는 `java -jar backend/target/food-cost-approval-0.1.0.jar` 로도 실행됩니다.
+포트는 `SERVER_PORT` 환경변수로 바꿀 수 있습니다.
+
+### 개발 모드 (화면 수정 시 자동 반영)
+
+```bash
+# 1) 백엔드 (8090)
+cd backend
+./mvnw spring-boot:run      # Windows: mvnw.cmd spring-boot:run
+
+# 2) 웹 (새 터미널) - /api 요청은 8090 으로 프록시
+cd web
+npm install
+npm run dev                  # http://localhost:5173
+```
+
+같은 Wi-Fi 의 휴대폰에서는 `http://<PC IP>:8090` (개발 모드는 `:5173`) 으로 접속하면 됩니다.
+
+### 테스트 계정 (비밀번호 모두 `1234`)
+
+| 아이디 | 이름 | 역할 |
+| --- | --- | --- |
+| `writer` | 김원가 대리 | 원가담당 (작성) |
+| `writer2` | 정생산 과장 | 원가담당 (작성) |
+| `leader` | 이팀장 팀장 | 결재권자 |
+| `plant` | 박공장 공장장 | 결재권자 |
+| `exec` | 최상무 상무 | 결재권자 |
+| `admin` | 관리자 | 관리자 |
+
+서버를 띄우면 샘플 자재 17종, 제품 3종, 원가계산서 4건(승인완료/결재중 2건/임시저장)이 자동 생성됩니다.
+H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, 사용자 `sa`)
+
+## 주요 기능
+
+- **원가계산서 작성**: 제품 선택 → 배합표(원재료·포장재 투입량, 단가, 손실률) 입력 → 노무비·제조경비 입력 → 원가 실시간 미리보기
+- **결재선 지정**: 결재권자를 순서대로 추가/순서변경
+- **결재**: 상신 → 순차 승인 → 최종 승인 / 반려(사유 필수) / 회수(아무도 승인 전일 때)
+- **결재함**: 내 차례인 문서, 내가 처리한 문서. 상단 메뉴에 대기 건수 표시
+- **기준정보**: 원재료·포장재 단가, 제품 판매가 관리 (원가담당/관리자만 수정)
+
+### 원가 계산식 (`CostSheet.recalculate`)
+
+```
+품목 금액 = 투입량 × 단가 × (1 + 손실률/100)        ← 원 단위 반올림
+총원가   = 원재료비 + 포장재비 + 노무비 + 제조경비      ← 배치(생산 1회) 기준
+개당원가 = 총원가 ÷ 생산수량                         ← 소수 둘째자리
+마진율   = (판매가 − 개당원가) ÷ 판매가 × 100
+```
+
+- 서버가 계산한 값이 기준이고, 웹 화면 미리보기(`web/src/utils/cost.ts`)는 같은 공식을 씁니다.
+- 자재명·단가는 작성 시점 값으로 품목에 **스냅샷** 저장되므로, 나중에 기준단가를 바꿔도 결재된 문서는 바뀌지 않습니다.
+
+### 결재 규칙 (`CostSheet` 엔티티)
+
+| 상태 | 가능한 동작 |
+| --- | --- |
+| 임시저장 | 작성자: 수정, 삭제, 상신 |
+| 결재중 | 현재 차례 결재자: 승인, 반려 / 작성자: 회수(승인자 없을 때만) |
+| 반려 | 작성자: 수정 후 재상신 (결재선 초기화, 이력은 유지) |
+| 승인완료 | 조회만 가능 |
+
+- 작성자 본인은 결재선에 넣을 수 없고, 같은 사람을 두 번 넣을 수 없습니다.
+- 모든 상신/승인/반려/회수는 결재 이력(`approval_history`)에 남습니다.
+
+## REST API
+
+모든 API는 `Authorization: Bearer <token>` 헤더가 필요합니다. (로그인 제외)
+
+| Method | URL | 설명 |
+| --- | --- | --- |
+| POST | `/api/auth/login` | 로그인 → `{ token, user }` |
+| GET | `/api/auth/me` | 내 정보 |
+| GET | `/api/users/approvers` | 결재권자 목록 |
+| GET/POST/PUT | `/api/materials`, `/api/materials/{id}` | 원재료·포장재 |
+| GET/POST/PUT | `/api/products`, `/api/products/{id}` | 제품 |
+| GET | `/api/cost-sheets?scope=mine\|all&status=` | 원가계산서 목록 |
+| GET/PUT/DELETE | `/api/cost-sheets/{id}` | 상세 / 수정 / 삭제 |
+| POST | `/api/cost-sheets` | 작성 |
+| POST | `/api/cost-sheets/{id}/submit` | 상신 |
+| POST | `/api/cost-sheets/{id}/withdraw` | 회수 |
+| POST | `/api/cost-sheets/{id}/approve` | 승인 `{ comment }` |
+| POST | `/api/cost-sheets/{id}/reject` | 반려 `{ comment }` (필수) |
+| GET | `/api/approvals?box=pending\|done` | 결재함 |
+| GET | `/api/approvals/count` | 결재 대기 건수 |
+
+상세 응답의 `permissions`(canEdit, canSubmit, canApprove 등)로 화면 버튼 노출을 결정하므로,
+모바일 앱을 만들 때도 같은 API를 그대로 쓰면 됩니다.
+
+## 테스트
+
+```bash
+cd backend && ./mvnw test       # 원가 계산, 상신→승인, 반려→재상신, 권한 검증 (7건)
+cd web && npm run build      # 타입체크 + 빌드
+```
+
+## 운영 전환 시 할 일
+
+- **DB**: `application.yml` 의 H2 를 MySQL/MariaDB/Oracle/PostgreSQL 로 교체하고 `ddl-auto: validate` + Flyway 등 마이그레이션 도구 사용
+- **JWT 비밀키**: 환경변수 `APP_JWT_SECRET` 로 32바이트 이상 값 지정
+- **샘플 데이터 끄기**: `app.seed-data: false`
+- **배포**: `run-local` 과 같이 jar 하나로 배포하거나, `web/dist/` 를 Nginx 로 서빙하고 `/api` 를 백엔드로 프록시
+
+## 다음 단계 아이디어
+
+- 모바일 앱: Capacitor 로 현재 웹앱을 감싸 Android/iOS 빌드하거나, React Native 로 결재 전용 앱 작성 (API 재사용)
+- 결재 요청/완료 푸시·메일 알림
+- 이전 승인 원가와 비교 (단가 변동 하이라이트)
+- 첨부파일 (견적서, 단가 근거)
+- 원가계산서 출력 (OZ Report / PDF), 엑셀 다운로드
+- 금액·마진율 기준 결재선 자동 지정 (전결 규정)

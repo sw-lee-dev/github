@@ -1,0 +1,13 @@
+# backend
+backend/target/
+*.log
+# web
+web/node_modules/
+web/dist/
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+web/*.tsbuildinfo
+release/*.jar
