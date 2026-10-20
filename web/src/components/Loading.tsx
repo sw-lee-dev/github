@@ -10,7 +10,7 @@ export function Loading() {
 export function ErrorAlert({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <div className="alert alert-danger py-2" role="alert">
+    <div className="alert alert-danger py-2" role="alert" style={{ whiteSpace: 'pre-line' }}>
       <i className="bi bi-exclamation-triangle me-2" />
       {message}
     </div>

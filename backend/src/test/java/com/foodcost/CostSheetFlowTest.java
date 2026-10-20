@@ -9,8 +9,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -92,6 +94,53 @@ class CostSheetFlowTest {
                             .content(om.writeValueAsString(sheetBody(List.of(item), line))))
                     .andExpect(status().isBadRequest());
         }
+    }
+
+    /** 롤백을 확인해야 하므로 테스트 트랜잭션 없이 실행한다 (성공 건은 커밋되어 남는다). */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 저장후_상신은_한번에_처리되고_실패하면_저장도_안된다() throws Exception {
+        String writer = login("writer");
+        int before = json(mvc.perform(get("/api/cost-sheets?scope=mine").header("Authorization", writer))).size();
+
+        // 결재선 없이 저장+상신 → 400, 문서가 생기지 않음
+        JsonNode err = json(mvc.perform(post("/api/cost-sheets?submit=true").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(sheetBody(defaultItems(writer), List.of()))))
+                .andExpect(status().isBadRequest()));
+        assertThat(err.get("message").asText()).isEqualTo("결재선을 지정하세요.");
+        // 품목 없이 저장+상신 → 400, 문서가 생기지 않음
+        mvc.perform(post("/api/cost-sheets?submit=true").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(sheetBody(List.of(), List.of(userId(writer, "leader"))))))
+                .andExpect(status().isBadRequest());
+        assertThat(json(mvc.perform(get("/api/cost-sheets?scope=mine").header("Authorization", writer))).size())
+                .isEqualTo(before);
+
+        // 조건을 갖추면 바로 결재중
+        mvc.perform(post("/api/cost-sheets?submit=true").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(sheetBody(defaultItems(writer), List.of(userId(writer, "leader"))))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("IN_APPROVAL"));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 수정후_상신이_실패하면_수정내용도_저장되지_않는다() throws Exception {
+        String writer = login("writer");
+        long id = createSheet(writer, List.of(userId(writer, "leader")));
+        Map<String, Object> changed = new java.util.HashMap<>(sheetBody(defaultItems(writer), List.of()));
+        changed.put("title", "바뀐 제목");
+
+        mvc.perform(put("/api/cost-sheets/" + id + "?submit=true").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(changed)))
+                .andExpect(status().isBadRequest());
+
+        JsonNode sheet = json(mvc.perform(get("/api/cost-sheets/" + id).header("Authorization", writer)));
+        assertThat(sheet.get("title").asText()).isEqualTo("테스트 원가");
+        assertThat(sheet.get("status").asText()).isEqualTo("DRAFT");
+        assertThat(sheet.get("steps").size()).isEqualTo(1);
     }
 
     @Test
@@ -224,6 +273,6 @@ class CostSheetFlowTest {
     }
 
     private JsonNode json(ResultActions result) throws Exception {
-        return om.readTree(result.andReturn().getResponse().getContentAsString());
+        return om.readTree(result.andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
     }
 }

@@ -70,20 +70,41 @@ public class CostSheetService {
 
     @Transactional
     public Detail create(AuthUser user, SaveRequest req) {
+        return create(user, req, false);
+    }
+
+    /**
+     * @param submit true 이면 저장과 상신을 한 트랜잭션으로 처리한다.
+     *               상신 조건(품목·결재선)을 못 갖추면 예외로 롤백되어 문서가 저장되지 않는다.
+     */
+    @Transactional
+    public Detail create(AuthUser user, SaveRequest req, boolean submit) {
         User writer = findUser(user.id());
         CostSheet sheet = new CostSheet(nextDocNo(), writer);
         apply(sheet, req);
         costSheetRepository.save(sheet);
+        if (submit) {
+            sheet.submit(writer);
+        }
         return Detail.of(sheet, user.id());
     }
 
     @Transactional
     public Detail update(AuthUser user, Long id, SaveRequest req) {
+        return update(user, id, req, false);
+    }
+
+    /** @param submit true 이면 수정과 상신을 한 트랜잭션으로 처리한다. 상신 실패 시 수정 내용도 저장되지 않는다. */
+    @Transactional
+    public Detail update(AuthUser user, Long id, SaveRequest req, boolean submit) {
         CostSheet sheet = find(id);
         if (!sheet.isWriter(user.id())) {
             throw ApiException.forbidden("작성자만 수정할 수 있습니다.");
         }
         apply(sheet, req);
+        if (submit) {
+            sheet.submit(findUser(user.id()));
+        }
         return Detail.of(sheet, user.id());
     }
 

@@ -189,20 +189,38 @@ export default function CostSheetFormPage() {
     return false;
   };
 
+  /** 상신에 필요한 값(서버 CostSheet.submit 과 같은 조건). 빠진 항목과 해당 탭을 돌려준다. */
+  const submitProblems = (): { tab: TabKey; msg: string }[] => {
+    const problems: { tab: TabKey; msg: string }[] = [];
+    if (!rawRows.some((r) => r.materialId) && !packRows.some((r) => r.materialId)) {
+      problems.push({ tab: 'bom', msg: '배합비: 원자재 또는 포장자재를 1개 이상 입력하세요.' });
+    }
+    if (approverIds.length === 0) {
+      problems.push({ tab: 'approval', msg: '결재선: 결재자를 1명 이상 지정하세요.' });
+    }
+    return problems;
+  };
+
   const save = async (submitAfter: boolean) => {
-    if (!validate()) return;
-    if (submitAfter && !window.confirm('저장 후 바로 결재를 상신할까요? 상신 후에는 수정할 수 없습니다.')) return;
-    setBusy(true);
     setError(null);
-    try {
-      const body = buildRequest();
-      const saved = editId ? await api.updateCostSheet(editId, body) : await api.createCostSheet(body);
-      // 저장은 됐으므로 상신이 실패해도 상세 화면으로 이동해 오류를 보여준다 (중복 생성 방지)
-      let submitError: string | null = null;
-      if (submitAfter) {
-        await api.submit(saved.id).catch((e) => { submitError = `저장은 되었지만 상신하지 못했습니다: ${errMsg(e)}`; });
+    if (!validate()) return;
+    if (submitAfter) {
+      const problems = submitProblems();
+      if (problems.length > 0) {
+        // 저장하지 않고 빠진 항목을 알려준 뒤 첫 번째 항목의 탭으로 이동
+        setError(['상신하려면 다음 항목을 입력하세요. (저장되지 않았습니다)', ...problems.map((p) => `• ${p.msg}`)].join('\n'));
+        setTab(problems[0].tab);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
       }
-      navigate(`/cost-sheets/${saved.id}`, { replace: true, state: { error: submitError } });
+      if (!window.confirm('저장 후 바로 결재를 상신할까요? 상신 후에는 수정할 수 없습니다.')) return;
+    }
+    setBusy(true);
+    try {
+      // 저장과 상신을 서버에서 한 트랜잭션으로 처리 → 상신이 실패하면 저장도 되지 않는다
+      const body = buildRequest();
+      const saved = editId ? await api.updateCostSheet(editId, body, submitAfter) : await api.createCostSheet(body, submitAfter);
+      navigate(`/cost-sheets/${saved.id}`, { replace: true });
     } catch (e) {
       setError(errMsg(e));
       window.scrollTo({ top: 0, behavior: 'smooth' });

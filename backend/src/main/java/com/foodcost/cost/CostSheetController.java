@@ -31,14 +31,16 @@ public class CostSheetController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Detail create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody SaveRequest request) {
-        return costSheetService.create(user, request);
+    public Detail create(@AuthenticationPrincipal AuthUser user, @Valid @RequestBody SaveRequest request,
+                         @RequestParam(defaultValue = "false") boolean submit) {
+        return costSheetService.create(user, request, submit);
     }
 
     @PutMapping("/{id}")
     public Detail update(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
-                         @Valid @RequestBody SaveRequest request) {
-        return costSheetService.update(user, id, request);
+                         @Valid @RequestBody SaveRequest request,
+                         @RequestParam(defaultValue = "false") boolean submit) {
+        return costSheetService.update(user, id, request, submit);
     }
 
     @DeleteMapping("/{id}")

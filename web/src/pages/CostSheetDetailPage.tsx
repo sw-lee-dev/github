@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { CostSheetDetail, CostSheetItem } from '../api/types';
 import ApprovalLine from '../components/ApprovalLine';
@@ -13,9 +13,8 @@ type Decision = 'approve' | 'reject' | null;
 export default function CostSheetDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const [sheet, setSheet] = useState<CostSheetDetail | null>(null);
-  const [error, setError] = useState<string | null>((location.state as { error?: string } | null)?.error ?? null);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [decision, setDecision] = useState<Decision>(null);
   const [comment, setComment] = useState('');

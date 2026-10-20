@@ -105,9 +105,11 @@ export const api = {
     return request<CostSheetSummary[]>('GET', `/api/cost-sheets?${q}`);
   },
   costSheet: (id: number) => request<CostSheetDetail>('GET', `/api/cost-sheets/${id}`),
-  createCostSheet: (body: CostSheetSaveRequest) => request<CostSheetDetail>('POST', '/api/cost-sheets', body),
-  updateCostSheet: (id: number, body: CostSheetSaveRequest) =>
-    request<CostSheetDetail>('PUT', `/api/cost-sheets/${id}`, body),
+  /** submit=true 이면 저장과 상신을 한 번에 처리한다. 상신 조건이 안 맞으면 저장도 되지 않는다. */
+  createCostSheet: (body: CostSheetSaveRequest, submit = false) =>
+    request<CostSheetDetail>('POST', `/api/cost-sheets?submit=${submit}`, body),
+  updateCostSheet: (id: number, body: CostSheetSaveRequest, submit = false) =>
+    request<CostSheetDetail>('PUT', `/api/cost-sheets/${id}?submit=${submit}`, body),
   deleteCostSheet: (id: number) => request<void>('DELETE', `/api/cost-sheets/${id}`),
   submit: (id: number) => request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/submit`),
   withdraw: (id: number) => request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/withdraw`),
