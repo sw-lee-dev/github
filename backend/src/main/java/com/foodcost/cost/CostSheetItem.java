@@ -13,8 +13,8 @@ import java.math.RoundingMode;
 /**
  * 원가계산서의 배합(BOM) 품목. 자재명/단가는 작성 시점 값으로 보관한다.
  * <pre>
- * 원자재  : 투입량 = 총 생산량(kg) × 배합비% × (1 − 손실률%)   ← 단위가 g 이면 × 1000
- *           금액   = 투입량 × 단가
+ * 원자재  : 투입량 = 총 생산량(kg) × 배합비% ÷ (1 − 손실률%)   ← 단위가 g 이면 × 1000
+ *           금액   = 투입량 × 단가                            (손실은 투입량에 이미 반영)
  * 포장자재: 투입량 = 직접 입력
  *           금액   = 투입량 × 단가 × (1 + 손실률%)
  * </pre>
@@ -103,10 +103,11 @@ public class CostSheetItem {
         this.lossRate = lossRate;
     }
 
-    /** 총 생산량(kg) × 배합비% × (1 − 손실률%). 자재 단위가 g 이면 g 으로 환산 */
+    /** 총 생산량(kg) × 배합비% ÷ (1 − 손실률%). 자재 단위가 g 이면 g 으로 환산. 손실률은 100% 미만이어야 한다. */
     static BigDecimal rawQuantity(BigDecimal totalOutputKg, BigDecimal ratio, BigDecimal lossRate, String unit) {
-        BigDecimal remain = BigDecimal.ONE.subtract(lossRate.divide(HUNDRED, 6, RoundingMode.HALF_UP));
-        BigDecimal kg = totalOutputKg.multiply(ratio).divide(HUNDRED, 10, RoundingMode.HALF_UP).multiply(remain);
+        BigDecimal yield = BigDecimal.ONE.subtract(lossRate.divide(HUNDRED, 6, RoundingMode.HALF_UP));
+        BigDecimal kg = totalOutputKg.multiply(ratio).divide(HUNDRED, 10, RoundingMode.HALF_UP)
+                .divide(yield, 10, RoundingMode.HALF_UP);
         BigDecimal qty = "g".equalsIgnoreCase(unit) ? kg.multiply(THOUSAND) : kg;
         return qty.setScale(4, RoundingMode.HALF_UP);
     }

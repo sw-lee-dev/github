@@ -119,6 +119,9 @@ public class CostSheetService {
                 if (item.ratio() == null) {
                     throw ApiException.badRequest("원자재 '" + material.getName() + "'의 배합비(%)를 입력하세요.");
                 }
+                if (lossRate.compareTo(BigDecimal.valueOf(100)) >= 0) {
+                    throw ApiException.badRequest("원자재 '" + material.getName() + "'의 손실률은 100% 미만이어야 합니다.");
+                }
                 return new CostSheet.ItemLine(material, item.ratio(), null, unitPrice, lossRate);
             }
             if (item.quantity() == null) {

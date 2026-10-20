@@ -49,9 +49,9 @@ class CostSheetFlowTest {
     void 원가가_서버에서_계산된다() throws Exception {
         String writer = login("writer");
         // 제품 FG-0001(버터쿠키 200g) × 100개 → 총 생산량 20kg
-        // 원자재 투입량 = 20kg × 배합비 × (1 − 손실률), 금액 = 투입량 × 단가
-        //   박력분 50%, 손실 0%  → 10kg × 1,000 = 10,000
-        //   백설탕 50%, 손실 20% →  8kg × 1,000 =  8,000
+        // 원자재 투입량 = 20kg × 배합비 ÷ (1 − 손실률), 금액 = 투입량 × 단가
+        //   박력분 50%, 손실 0%  → 10kg   × 1,000 = 10,000
+        //   백설탕 50%, 손실 20% → 12.5kg × 1,000 = 12,500
         // 포장자재 금액 = 투입량 × 단가 × (1 + 손실률): 필름 1,000EA × 20원 × 1.1 = 22,000
         Map<String, Object> body = sheetBody(List.of(
                 Map.of("materialId", materialId(writer, "M-0001"), "ratio", 50, "unitPrice", 1000, "lossRate", 0),
@@ -67,14 +67,14 @@ class CostSheetFlowTest {
         assertThat(sheet.get("totalOutput").decimalValue()).isEqualByComparingTo("20");
         assertThat(sheet.at("/items/0/ratio").decimalValue()).isEqualByComparingTo("50");
         assertThat(sheet.at("/items/0/quantity").decimalValue()).isEqualByComparingTo("10");
-        assertThat(sheet.at("/items/1/quantity").decimalValue()).isEqualByComparingTo("8");
+        assertThat(sheet.at("/items/1/quantity").decimalValue()).isEqualByComparingTo("12.5");
         assertThat(sheet.at("/items/2/ratio").isNull()).isTrue();
-        // 총원가 = 18,000 + 22,000 + 노무비 50,000 + 경비 20,000 = 110,000 / 100개 = 1,100원, 판매가 2,500원 → 마진 56%
-        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("18000");
+        // 총원가 = 22,500 + 22,000 + 노무비 50,000 + 경비 20,000 = 114,500 / 100개 = 1,145원, 판매가 2,500원 → 마진 54.2%
+        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("22500");
         assertThat(sheet.get("packagingCost").decimalValue()).isEqualByComparingTo("22000");
-        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("110000");
-        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("1100");
-        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("56");
+        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("114500");
+        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("1145");
+        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("54.2");
         assertThat(sheet.get("status").asText()).isEqualTo("DRAFT");
         assertThat(sheet.get("docNo").asText()).startsWith("CS-");
     }
@@ -86,7 +86,7 @@ class CostSheetFlowTest {
         for (Map<String, Object> item : List.of(
                 Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "quantity", 10),
                 Map.<String, Object>of("materialId", materialId(writer, "P-0001"), "ratio", 10),
-                Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "ratio", 10, "lossRate", 101))) {
+                Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "ratio", 10, "lossRate", 100))) {
             mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(om.writeValueAsString(sheetBody(List.of(item), line))))

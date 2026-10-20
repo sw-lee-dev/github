@@ -34,7 +34,7 @@ public final class CostSheetDto {
 
     /**
      * 원자재는 ratio(배합비%)를, 포장자재는 quantity(투입량)를 입력한다.
-     * 원자재 투입량은 서버가 총 생산량 × 배합비 × (1 − 손실률)로 계산하므로 quantity 를 보내도 무시한다.
+     * 원자재 투입량은 서버가 총 생산량 × 배합비 ÷ (1 − 손실률)로 계산하므로 quantity 를 보내도 무시한다.
      */
     public record ItemRequest(
             @NotNull(message = "자재를 선택하세요.") Long materialId,

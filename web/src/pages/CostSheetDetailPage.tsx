@@ -251,7 +251,7 @@ function ItemTable({ title, items, total, raw = false }: { title: string; items:
           )}
         </table>
       </div>
-      {raw && <div className="card-footer bg-white small text-muted">투입량 = 총 생산량 × 배합비% × (1 − 손실률%)</div>}
+      {raw && <div className="card-footer bg-white small text-muted">투입량 = 총 생산량 × 배합비% ÷ (1 − 손실률%)</div>}
     </div>
   );
 }

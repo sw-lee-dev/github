@@ -7,7 +7,7 @@ import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { calcCost, packagingAmount, rawAmount, rawQuantity, totalOutputKg } from '../utils/cost';
 import { fmtNum, fmtWon } from '../utils/format';
 
-/** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비 × (1 − 손실률)로 자동 계산 */
+/** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비 ÷ (1 − 손실률)로 자동 계산 */
 interface RawRow {
   key: number;
   materialId: string;
@@ -295,7 +295,7 @@ export default function CostSheetFormPage() {
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">손실률(%)</span>
-                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="손실률"
+                    <input type="number" step="any" min={0} max={99.99} className="form-control form-control-sm text-end" aria-label="손실률"
                       value={r.lossRate} onChange={(e) => updateRaw(r.key, { lossRate: e.target.value })} />
                   </label>
                   <label className="bom-cell">
@@ -329,7 +329,7 @@ export default function CostSheetFormPage() {
               </span>
               <span>원자재 합계 <strong>{fmtWon(materialCost)}</strong>원</span>
             </div>
-            <div className="form-text">투입량 = 총 생산량 × 배합비% × (1 − 손실률%), 금액 = 투입량 × 단가</div>
+            <div className="form-text">투입량 = 총 생산량 × 배합비% ÷ (1 − 손실률%), 금액 = 투입량 × 단가. 손실률은 100% 미만</div>
           </section>
 
           <section aria-labelledby="pack-title">

@@ -2,7 +2,7 @@
  * 화면 미리보기용 원가 계산. 서버(CostSheet, CostSheetItem)와 같은 공식이며, 저장 시 서버 값이 기준이다.
  *
  * 총 생산량(kg) = 제품 당 무게(g) × 생산수량 ÷ 1000
- * 원자재  투입량 = 총 생산량 × 배합비% × (1 − 손실률%)   (자재 단위가 g 이면 × 1000)
+ * 원자재  투입량 = 총 생산량 × 배합비% ÷ (1 − 손실률%)   (자재 단위가 g 이면 × 1000)
  *         금액   = 투입량 × 단가
  * 포장자재 금액  = 투입량 × 단가 × (1 + 손실률%)
  */
@@ -12,7 +12,9 @@ export const totalOutputKg = (unitWeightG: number, productionQty: number) =>
   round(((unitWeightG || 0) * (productionQty || 0)) / 1000, 3);
 
 export function rawQuantity(totalKg: number, ratio: number, lossRate: number, unit: string) {
-  const kg = (((totalKg || 0) * (ratio || 0)) / 100) * (1 - (lossRate || 0) / 100);
+  const yieldRate = 1 - (lossRate || 0) / 100;
+  if (yieldRate <= 0) return 0;
+  const kg = ((totalKg || 0) * (ratio || 0)) / 100 / yieldRate;
   return round(unit.toLowerCase() === 'g' ? kg * 1000 : kg, 4);
 }
 
