@@ -121,25 +121,49 @@ export default function MaterialsPage() {
             <span className="small text-muted">자재코드는 구분에 따라 자동 생성됩니다 (원재료 M-0000, 포장재 P-0000)</span>
           </div>
           <div className="card-body vstack gap-2">
+            {/* 열 제목. 모바일에서는 행이 여러 줄로 접히므로 칸마다 붙은 라벨로 대신한다 */}
+            <div className="material-row material-head d-none d-md-grid" aria-hidden="true">
+              <span className="text-center">코드</span>
+              <span>자재명</span>
+              <span>구분</span>
+              <span>단위</span>
+              <span className="text-end">단가(원)</span>
+              <span />
+            </div>
             {newRows.map((r, idx) => (
               <div key={r.key} className="material-row">
-                <input className="form-control form-control-sm text-center fw-medium bg-light" value={previewCodes[idx]}
-                  readOnly tabIndex={-1} aria-label="자재코드(자동)" title="저장 시 자동으로 부여됩니다" />
-                <select className="form-select form-select-sm" aria-label="구분" value={r.type}
-                  onChange={(e) => {
-                    const type = e.target.value as MaterialType;
-                    updateRow(r.key, { type, unit: r.unit === DEFAULT_UNIT[r.type] ? DEFAULT_UNIT[type] : r.unit });
-                  }}>
-                  <option value="RAW">원재료</option>
-                  <option value="PACKAGING">포장재</option>
-                </select>
-                <input className="form-control form-control-sm" placeholder="자재명" aria-label="자재명" required
-                  value={r.name} onChange={(e) => updateRow(r.key, { name: e.target.value })} autoFocus={idx === newRows.length - 1} />
-                <input className="form-control form-control-sm" placeholder="단위" aria-label="단위" required
-                  value={r.unit} onChange={(e) => updateRow(r.key, { unit: e.target.value })} />
-                <input type="number" step="any" min={0} className="form-control form-control-sm text-end" placeholder="단가(원)"
-                  aria-label="단가" required value={r.unitPrice}
-                  onChange={(e) => updateRow(r.key, { unitPrice: Number(e.target.value) })} />
+                <label className="material-cell">
+                  <span className="cell-label">코드</span>
+                  <input className="form-control form-control-sm text-center fw-medium bg-light" value={previewCodes[idx]}
+                    readOnly tabIndex={-1} aria-label="자재코드(자동)" title="저장 시 자동으로 부여됩니다" />
+                </label>
+                <label className="material-cell">
+                  <span className="cell-label">자재명</span>
+                  <input className="form-control form-control-sm" placeholder="자재명" aria-label="자재명" required
+                    value={r.name} onChange={(e) => updateRow(r.key, { name: e.target.value })} autoFocus={idx === newRows.length - 1} />
+                </label>
+                <label className="material-cell">
+                  <span className="cell-label">구분</span>
+                  <select className="form-select form-select-sm" aria-label="구분" value={r.type}
+                    onChange={(e) => {
+                      const type = e.target.value as MaterialType;
+                      updateRow(r.key, { type, unit: r.unit === DEFAULT_UNIT[r.type] ? DEFAULT_UNIT[type] : r.unit });
+                    }}>
+                    <option value="RAW">원재료</option>
+                    <option value="PACKAGING">포장재</option>
+                  </select>
+                </label>
+                <label className="material-cell">
+                  <span className="cell-label">단위</span>
+                  <input className="form-control form-control-sm" placeholder="단위" aria-label="단위" required
+                    value={r.unit} onChange={(e) => updateRow(r.key, { unit: e.target.value })} />
+                </label>
+                <label className="material-cell">
+                  <span className="cell-label">단가(원)</span>
+                  <input type="number" step="any" min={0} className="form-control form-control-sm text-end" placeholder="단가(원)"
+                    aria-label="단가" required value={r.unitPrice}
+                    onChange={(e) => updateRow(r.key, { unitPrice: Number(e.target.value) })} />
+                </label>
                 <button type="button" className="btn btn-sm btn-outline-danger" aria-label="행 삭제"
                   onClick={() => setNewRows((rs) => rs.filter((x) => x.key !== r.key))}>
                   <i className="bi bi-x-lg" />
@@ -147,17 +171,11 @@ export default function MaterialsPage() {
               </div>
             ))}
           </div>
-          <div className="card-footer bg-white d-flex flex-wrap justify-content-between gap-2">
-            <div className="d-flex gap-2">
-              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addRow('RAW')}>+ 원재료 행</button>
-              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => addRow('PACKAGING')}>+ 포장재 행</button>
-            </div>
-            <div className="d-flex gap-2">
-              <button type="button" className="btn btn-sm btn-light" onClick={() => setNewRows([])}>취소</button>
-              <button className="btn btn-sm btn-brand" disabled={busy}>
-                {busy && <span className="spinner-border spinner-border-sm me-1" />}{newRows.length}건 저장
-              </button>
-            </div>
+          <div className="card-footer bg-white d-flex justify-content-end gap-2">
+            <button type="button" className="btn btn-sm btn-light" onClick={() => setNewRows([])}>취소</button>
+            <button className="btn btn-sm btn-brand" disabled={busy}>
+              {busy && <span className="spinner-border spinner-border-sm me-1" />}{newRows.length}건 저장
+            </button>
           </div>
         </form>
       )}

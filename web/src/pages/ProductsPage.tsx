@@ -56,9 +56,7 @@ export default function ProductsPage() {
               <label className="form-label small">제품코드</label>
               <input className="form-control form-control-sm bg-light" readOnly tabIndex={-1}
                 value={editingId ? editingCode : nextCode(PRODUCT_CODE_PREFIX, (rows ?? []).map((p) => p.code))}
-                title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />
-              {!editingId && <div className="form-text">저장 시 자동 부여</div>}
-            </div>
+                title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />            </div>
             <div className="col-6 col-md-3">
               <label className="form-label small">제품명</label>
               <input className="form-control form-control-sm" value={form.name} required

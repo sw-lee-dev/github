@@ -118,13 +118,23 @@ td, th { font-variant-numeric: tabular-nums; }
   --bs-btn-active-color: #fff;
 }
 
-/* 자재 일괄 등록 행: 코드 | 구분 | 자재명 | 단위 | 단가 | 삭제 */
+/* 자재 일괄 등록 행: 코드 | 자재명 | 구분 | 단위 | 단가 | 삭제 */
 .material-row {
   display: grid;
-  grid-template-columns: 90px 110px minmax(160px, 1fr) 80px 130px 36px;
+  grid-template-columns: 90px minmax(160px, 1fr) 110px 80px 130px 36px;
   gap: 6px;
   align-items: center;
 }
+.material-head {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--bs-secondary-color);
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--bs-border-color);
+}
+.material-head > span:not(.text-center):not(.text-end) { padding-left: 8px; }
+.material-cell { margin: 0; min-width: 0; }
+.material-cell > .cell-label { display: none; }
 @media (max-width: 767.98px) {
   .material-row {
     grid-template-columns: 1fr 1fr 36px;
@@ -134,10 +144,16 @@ td, th { font-variant-numeric: tabular-nums; }
     border-radius: 8px;
     background: #fafbfa;
   }
+  .material-cell > .cell-label {
+    display: block;
+    font-size: .75rem;
+    color: var(--bs-secondary-color);
+    margin-bottom: 2px;
+  }
   .material-row > :nth-child(1) { grid-area: code; }
-  .material-row > :nth-child(2) { grid-area: type; }
-  .material-row > :nth-child(3) { grid-area: name; }
+  .material-row > :nth-child(2) { grid-area: name; }
+  .material-row > :nth-child(3) { grid-area: type; }
   .material-row > :nth-child(4) { grid-area: unit; }
   .material-row > :nth-child(5) { grid-area: price; }
-  .material-row > :nth-child(6) { grid-area: del; }
+  .material-row > :nth-child(6) { grid-area: del; align-self: end; }
 }
