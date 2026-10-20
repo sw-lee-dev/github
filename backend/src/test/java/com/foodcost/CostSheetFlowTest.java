@@ -50,8 +50,8 @@ class CostSheetFlowTest {
         String writer = login("writer");
         // 박력분 100kg × 1,000원 × (1 + 10%) = 110,000 / 필름 1,000EA × 20원 = 20,000
         Map<String, Object> body = sheetBody(List.of(
-                Map.of("materialId", materialId(writer, "M-001"), "quantity", 100, "unitPrice", 1000, "lossRate", 10),
-                Map.of("materialId", materialId(writer, "P-001"), "quantity", 1000, "unitPrice", 20)
+                Map.of("materialId", materialId(writer, "M-0001"), "quantity", 100, "unitPrice", 1000, "lossRate", 10),
+                Map.of("materialId", materialId(writer, "P-0001"), "quantity", 1000, "unitPrice", 20)
         ), List.of(userId(writer, "leader")));
 
         JsonNode sheet = json(mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
@@ -140,7 +140,7 @@ class CostSheetFlowTest {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"FG-999\",\"name\":\"테스트\",\"salePrice\":1000}"))
+                        .content("{\"name\":\"테스트\",\"salePrice\":1000}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -175,7 +175,7 @@ class CostSheetFlowTest {
     }
 
     private List<Map<String, Object>> defaultItems(String token) throws Exception {
-        return List.of(Map.of("materialId", materialId(token, "M-001"), "quantity", 10));
+        return List.of(Map.of("materialId", materialId(token, "M-0001"), "quantity", 10));
     }
 
     private long materialId(String token, String code) throws Exception {

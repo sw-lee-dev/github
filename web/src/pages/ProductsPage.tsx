@@ -3,9 +3,10 @@ import { api, type ProductPayload } from '../api/client';
 import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
+import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
 import { fmtWon } from '../utils/format';
 
-const EMPTY: ProductPayload = { code: '', name: '', spec: '', salePrice: 0, active: true };
+const EMPTY: ProductPayload = { name: '', spec: '', salePrice: 0, active: true };
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -13,7 +14,9 @@ export default function ProductsPage() {
   const [rows, setRows] = useState<Product[] | null>(null);
   const [form, setForm] = useState<ProductPayload | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingCode, setEditingCode] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const load = () => api.products().then(setRows).catch((e) => setError(errMsg(e)));
   useEffect(() => { load(); }, []);
@@ -23,8 +26,8 @@ export default function ProductsPage() {
     if (!form) return;
     try {
       const body = { ...form, spec: form.spec?.trim() || null };
-      if (editingId) await api.updateProduct(editingId, body);
-      else await api.createProduct(body);
+      const saved = editingId ? await api.updateProduct(editingId, body) : await api.createProduct(body);
+      setNotice(`${saved.code} ${saved.name} ${editingId ? '수정' : '등록'} 완료`);
       setForm(null);
       load();
     } catch (err) {
@@ -37,12 +40,13 @@ export default function ProductsPage() {
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 className="h4 mb-0">제품</h1>
         {editable && !form && (
-          <button className="btn btn-brand" onClick={() => { setEditingId(null); setForm({ ...EMPTY }); setError(null); }}>
+          <button className="btn btn-brand" onClick={() => { setEditingId(null); setForm({ ...EMPTY }); setError(null); setNotice(null); }}>
             <i className="bi bi-plus-lg me-1" />제품 등록
           </button>
         )}
       </div>
       <ErrorAlert message={error} />
+      {notice && <div className="alert alert-success py-2"><i className="bi bi-check-circle me-2" />{notice}</div>}
 
       {form && (
         <form className="card shadow-sm mb-3" onSubmit={save}>
@@ -50,8 +54,10 @@ export default function ProductsPage() {
           <div className="card-body row g-2">
             <div className="col-6 col-md-2">
               <label className="form-label small">제품코드</label>
-              <input className="form-control form-control-sm" value={form.code} disabled={!!editingId} required
-                onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="FG-004" />
+              <input className="form-control form-control-sm bg-light" readOnly tabIndex={-1}
+                value={editingId ? editingCode : nextCode(PRODUCT_CODE_PREFIX, (rows ?? []).map((p) => p.code))}
+                title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />
+              {!editingId && <div className="form-text">저장 시 자동 부여</div>}
             </div>
             <div className="col-6 col-md-3">
               <label className="form-label small">제품명</label>
@@ -104,8 +110,10 @@ export default function ProductsPage() {
                     <td className="text-end">
                       <button className="btn btn-sm btn-link" onClick={() => {
                         setEditingId(p.id);
-                        setForm({ code: p.code, name: p.name, spec: p.spec, salePrice: p.salePrice, active: p.active });
+                        setEditingCode(p.code);
+                        setForm({ name: p.name, spec: p.spec, salePrice: p.salePrice, active: p.active });
                         setError(null);
+                        setNotice(null);
                       }}>수정</button>
                     </td>
                   )}

@@ -66,8 +66,8 @@ async function request<T>(method: string, url: string, body?: unknown): Promise<
   return res.json() as Promise<T>;
 }
 
+/** 자재코드는 서버가 구분(M/P)에 따라 자동 채번하므로 보내지 않는다. */
 export interface MaterialPayload {
-  code: string;
   name: string;
   type: MaterialType;
   unit: string;
@@ -75,8 +75,8 @@ export interface MaterialPayload {
   active: boolean;
 }
 
+/** 제품코드는 서버가 자동 채번(FG-0001)하므로 보내지 않는다. */
 export interface ProductPayload {
-  code: string;
   name: string;
   spec: string | null;
   salePrice: number;
@@ -90,7 +90,7 @@ export const api = {
   approvers: () => request<User[]>('GET', '/api/users/approvers'),
 
   materials: () => request<Material[]>('GET', '/api/materials'),
-  createMaterial: (p: MaterialPayload) => request<Material>('POST', '/api/materials', p),
+  createMaterials: (items: MaterialPayload[]) => request<Material[]>('POST', '/api/materials/batch', { items }),
   updateMaterial: (id: number, p: MaterialPayload) => request<Material>('PUT', `/api/materials/${id}`, p),
 
   products: () => request<Product[]>('GET', '/api/products'),

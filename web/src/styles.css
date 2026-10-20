@@ -107,3 +107,37 @@ body {
 }
 
 td, th { font-variant-numeric: tabular-nums; }
+
+.btn-outline-brand {
+  --bs-btn-color: var(--brand);
+  --bs-btn-border-color: var(--brand);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-bg: var(--brand);
+  --bs-btn-hover-border-color: var(--brand);
+  --bs-btn-active-bg: var(--brand-dark);
+  --bs-btn-active-color: #fff;
+}
+
+/* 자재 일괄 등록 행: 코드 | 구분 | 자재명 | 단위 | 단가 | 삭제 */
+.material-row {
+  display: grid;
+  grid-template-columns: 90px 110px minmax(160px, 1fr) 80px 130px 36px;
+  gap: 6px;
+  align-items: center;
+}
+@media (max-width: 767.98px) {
+  .material-row {
+    grid-template-columns: 1fr 1fr 36px;
+    grid-template-areas: "code type del" "name name name" "unit price price";
+    padding: 8px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    background: #fafbfa;
+  }
+  .material-row > :nth-child(1) { grid-area: code; }
+  .material-row > :nth-child(2) { grid-area: type; }
+  .material-row > :nth-child(3) { grid-area: name; }
+  .material-row > :nth-child(4) { grid-area: unit; }
+  .material-row > :nth-child(5) { grid-area: price; }
+  .material-row > :nth-child(6) { grid-area: del; }
+}

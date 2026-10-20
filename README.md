@@ -90,6 +90,15 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 - **결재**: 상신 → 순차 승인 → 최종 승인 / 반려(사유 필수) / 회수(아무도 승인 전일 때)
 - **결재함**: 내 차례인 문서, 내가 처리한 문서. 상단 메뉴에 대기 건수 표시
 - **기준정보**: 원재료·포장재 단가, 제품 판매가 관리 (원가담당/관리자만 수정)
+  - 코드는 **자동 채번, 수정 불가**: `{구분코드}-{4자리 순번}`, 같은 구분의 가장 큰 순번 + 1 (없으면 0001)
+
+    | 구분 | 코드 예 |
+    | --- | --- |
+    | 원재료 | `M-0001`, `M-0002` … |
+    | 포장재 | `P-0001`, `P-0002` … |
+    | 제품 | `FG-0001`, `FG-0002` … |
+  - 자재는 **원재료 등록 / 포장재 등록** 버튼으로 여러 행을 추가해 한 번에 저장 (요청 순서대로 채번)
+  - 자재 구분은 코드와 연결되므로 등록 후 변경 불가
 
 ### 원가 계산식 (`CostSheet.recalculate`)
 
@@ -124,8 +133,9 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 | POST | `/api/auth/login` | 로그인 → `{ token, user }` |
 | GET | `/api/auth/me` | 내 정보 |
 | GET | `/api/users/approvers` | 결재권자 목록 |
-| GET/POST/PUT | `/api/materials`, `/api/materials/{id}` | 원재료·포장재 |
-| GET/POST/PUT | `/api/products`, `/api/products/{id}` | 제품 |
+| GET/POST/PUT | `/api/materials`, `/api/materials/{id}` | 원재료·포장재 (코드 자동 채번) |
+| POST | `/api/materials/batch` | 원재료·포장재 일괄 등록 `{ items: [...] }` |
+| GET/POST/PUT | `/api/products`, `/api/products/{id}` | 제품 (코드 자동 채번) |
 | GET | `/api/cost-sheets?scope=mine\|all&status=` | 원가계산서 목록 |
 | GET/PUT/DELETE | `/api/cost-sheets/{id}` | 상세 / 수정 / 삭제 |
 | POST | `/api/cost-sheets` | 작성 |
@@ -142,7 +152,7 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 ## 테스트
 
 ```bash
-cd backend && ./mvnw test       # 원가 계산, 상신→승인, 반려→재상신, 권한 검증 (7건)
+cd backend && ./mvnw test       # 원가 계산, 결재 흐름, 권한, 코드 채번 (18건)
 cd web && npm run build      # 타입체크 + 빌드
 ```
 

@@ -28,6 +28,13 @@ public class MasterDataController {
         return masterDataService.createMaterial(request);
     }
 
+    @PostMapping("/materials/batch")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN','WRITER')")
+    public List<MaterialResponse> createMaterials(@Valid @RequestBody MaterialBatchRequest request) {
+        return masterDataService.createMaterials(request.items());
+    }
+
     @PutMapping("/materials/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','WRITER')")
     public MaterialResponse updateMaterial(@PathVariable Long id, @Valid @RequestBody MaterialRequest request) {

@@ -6,12 +6,17 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MasterDataService {
+
+    /** 제품코드 접두어 (Finished Goods) */
+    public static final String PRODUCT_CODE_PREFIX = "FG";
 
     private final MaterialRepository materialRepository;
     private final ProductRepository productRepository;
@@ -22,20 +27,37 @@ public class MasterDataService {
 
     @Transactional
     public MaterialResponse createMaterial(MaterialRequest req) {
-        if (materialRepository.existsByCode(req.code())) {
-            throw ApiException.conflict("이미 등록된 자재코드입니다: " + req.code());
-        }
-        Material material = Material.builder()
-                .code(req.code()).name(req.name()).type(req.type())
-                .unit(req.unit()).unitPrice(req.unitPrice())
-                .build();
-        return MaterialResponse.from(materialRepository.save(material));
+        return createMaterials(List.of(req)).get(0);
+    }
+
+    /**
+     * 자재 일괄 등록. 구분별로 기존 최대 순번 다음부터 요청 순서대로 코드를 부여한다.
+     * 예) 기존 M-0012, P-0005 가 있을 때 [원재료, 포장재, 원재료] → M-0013, P-0006, M-0014
+     */
+    @Transactional
+    public List<MaterialResponse> createMaterials(List<MaterialRequest> requests) {
+        Map<MaterialType, Integer> lastSeq = new EnumMap<>(MaterialType.class);
+        return requests.stream().map(req -> {
+            String prefix = req.type().getCodePrefix();
+            int seq = lastSeq.computeIfAbsent(req.type(),
+                    t -> CodeSequence.maxSeq(prefix, materialRepository.findCodesByPrefix(prefix))) + 1;
+            lastSeq.put(req.type(), seq);
+
+            Material material = Material.builder()
+                    .code(CodeSequence.format(prefix, seq)).name(req.name()).type(req.type())
+                    .unit(req.unit()).unitPrice(req.unitPrice())
+                    .build();
+            return MaterialResponse.from(materialRepository.save(material));
+        }).toList();
     }
 
     @Transactional
     public MaterialResponse updateMaterial(Long id, MaterialRequest req) {
         Material material = materialRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("자재를 찾을 수 없습니다."));
+        if (material.getType() != req.type()) {
+            throw ApiException.badRequest("자재 구분은 변경할 수 없습니다. (자재코드가 구분에 따라 정해집니다)");
+        }
         material.update(req.name(), req.type(), req.unit(), req.unitPrice(), req.active() == null || req.active());
         return MaterialResponse.from(material);
     }
@@ -46,11 +68,9 @@ public class MasterDataService {
 
     @Transactional
     public ProductResponse createProduct(ProductRequest req) {
-        if (productRepository.existsByCode(req.code())) {
-            throw ApiException.conflict("이미 등록된 제품코드입니다: " + req.code());
-        }
+        String code = CodeSequence.next(PRODUCT_CODE_PREFIX, productRepository.findCodesByPrefix(PRODUCT_CODE_PREFIX));
         Product product = Product.builder()
-                .code(req.code()).name(req.name()).spec(req.spec()).salePrice(req.salePrice())
+                .code(code).name(req.name()).spec(req.spec()).salePrice(req.salePrice())
                 .build();
         return ProductResponse.from(productRepository.save(product));
     }

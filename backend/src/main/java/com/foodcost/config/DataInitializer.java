@@ -3,7 +3,10 @@ package com.foodcost.config;
 import com.foodcost.cost.CostSheetDto.ItemRequest;
 import com.foodcost.cost.CostSheetDto.SaveRequest;
 import com.foodcost.cost.CostSheetService;
-import com.foodcost.master.*;
+import com.foodcost.master.MasterDataService;
+import com.foodcost.master.MasterDto.MaterialRequest;
+import com.foodcost.master.MasterDto.ProductRequest;
+import com.foodcost.master.MaterialType;
 import com.foodcost.user.AuthUser;
 import com.foodcost.user.Role;
 import com.foodcost.user.User;
@@ -17,7 +20,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -35,8 +37,7 @@ public class DataInitializer implements ApplicationRunner {
     private static final String DEFAULT_PASSWORD = "1234";
 
     private final UserRepository userRepository;
-    private final MaterialRepository materialRepository;
-    private final ProductRepository productRepository;
+    private final MasterDataService masterDataService;
     private final CostSheetService costSheetService;
     private final PasswordEncoder passwordEncoder;
 
@@ -46,8 +47,8 @@ public class DataInitializer implements ApplicationRunner {
             return;
         }
         Map<String, User> users = createUsers();
-        Map<String, Material> materials = createMaterials();
-        Map<String, Product> products = createProducts();
+        Map<String, Long> materials = createMaterials();
+        Map<String, Long> products = createProducts();
         createSampleSheets(users, materials, products);
         log.info("샘플 데이터 생성 완료 - 계정: writer / leader / plant / exec / admin (비밀번호 {})", DEFAULT_PASSWORD);
     }
@@ -69,47 +70,52 @@ public class DataInitializer implements ApplicationRunner {
                 .department(dept).position(position).role(role).build();
     }
 
-    private Map<String, Material> createMaterials() {
-        List<Material> list = new ArrayList<>(List.of(
-                material("M-001", "박력분", MaterialType.RAW, "kg", 1_350),
-                material("M-002", "백설탕", MaterialType.RAW, "kg", 1_480),
-                material("M-003", "무염버터", MaterialType.RAW, "kg", 12_800),
-                material("M-004", "전란액", MaterialType.RAW, "kg", 4_200),
-                material("M-005", "탈지분유", MaterialType.RAW, "kg", 7_600),
-                material("M-006", "정제소금", MaterialType.RAW, "kg", 600),
-                material("M-007", "바닐라향", MaterialType.RAW, "kg", 38_000),
-                material("M-008", "코코아파우더", MaterialType.RAW, "kg", 15_500),
-                material("M-009", "다크초콜릿칩", MaterialType.RAW, "kg", 11_200),
-                material("M-010", "강력분", MaterialType.RAW, "kg", 1_250),
-                material("M-011", "이스트", MaterialType.RAW, "kg", 9_800),
-                material("M-012", "흰우유", MaterialType.RAW, "L", 1_900),
-                material("P-001", "개별포장필름", MaterialType.PACKAGING, "EA", 18),
-                material("P-002", "쿠키 트레이", MaterialType.PACKAGING, "EA", 45),
-                material("P-003", "단상자(200g)", MaterialType.PACKAGING, "EA", 210),
-                material("P-004", "외박스(20입)", MaterialType.PACKAGING, "EA", 650),
-                material("P-005", "식빵 비닐봉투", MaterialType.PACKAGING, "EA", 35)));
-        return materialRepository.saveAll(list).stream().collect(Collectors.toMap(Material::getCode, Function.identity()));
+    /** 자재코드는 서비스에서 자동 채번된다: 원재료 M-0001~M-0012, 포장재 P-0001~P-0005 */
+    private Map<String, Long> createMaterials() {
+        List<MaterialRequest> list = List.of(
+                material("박력분", MaterialType.RAW, "kg", 1_350),
+                material("백설탕", MaterialType.RAW, "kg", 1_480),
+                material("무염버터", MaterialType.RAW, "kg", 12_800),
+                material("전란액", MaterialType.RAW, "kg", 4_200),
+                material("탈지분유", MaterialType.RAW, "kg", 7_600),
+                material("정제소금", MaterialType.RAW, "kg", 600),
+                material("바닐라향", MaterialType.RAW, "kg", 38_000),
+                material("코코아파우더", MaterialType.RAW, "kg", 15_500),
+                material("다크초콜릿칩", MaterialType.RAW, "kg", 11_200),
+                material("강력분", MaterialType.RAW, "kg", 1_250),
+                material("이스트", MaterialType.RAW, "kg", 9_800),
+                material("흰우유", MaterialType.RAW, "L", 1_900),
+                material("개별포장필름", MaterialType.PACKAGING, "EA", 18),
+                material("쿠키 트레이", MaterialType.PACKAGING, "EA", 45),
+                material("단상자(200g)", MaterialType.PACKAGING, "EA", 210),
+                material("외박스(20입)", MaterialType.PACKAGING, "EA", 650),
+                material("식빵 비닐봉투", MaterialType.PACKAGING, "EA", 35));
+        return masterDataService.createMaterials(list).stream()
+                .collect(Collectors.toMap(r -> r.code(), r -> r.id()));
     }
 
-    private static Material material(String code, String name, MaterialType type, String unit, long price) {
-        return Material.builder().code(code).name(name).type(type).unit(unit).unitPrice(BigDecimal.valueOf(price)).build();
+    private static MaterialRequest material(String name, MaterialType type, String unit, long price) {
+        return new MaterialRequest(name, type, unit, BigDecimal.valueOf(price), true);
     }
 
-    private Map<String, Product> createProducts() {
-        List<Product> list = List.of(
-                Product.builder().code("FG-001").name("버터쿠키").spec("200g (10입)").salePrice(BigDecimal.valueOf(4_500)).build(),
-                Product.builder().code("FG-002").name("초코칩쿠키").spec("180g (9입)").salePrice(BigDecimal.valueOf(4_800)).build(),
-                Product.builder().code("FG-003").name("우유식빵").spec("400g").salePrice(BigDecimal.valueOf(3_900)).build());
-        return productRepository.saveAll(list).stream().collect(Collectors.toMap(Product::getCode, Function.identity()));
+    /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003 */
+    private Map<String, Long> createProducts() {
+        return List.of(
+                        new ProductRequest("버터쿠키", "200g (10입)", BigDecimal.valueOf(4_500), true),
+                        new ProductRequest("초코칩쿠키", "180g (9입)", BigDecimal.valueOf(4_800), true),
+                        new ProductRequest("우유식빵", "400g", BigDecimal.valueOf(3_900), true))
+                .stream()
+                .map(masterDataService::createProduct)
+                .collect(Collectors.toMap(r -> r.code(), r -> r.id()));
     }
 
-    private void createSampleSheets(Map<String, User> u, Map<String, Material> m, Map<String, Product> p) {
+    private void createSampleSheets(Map<String, User> u, Map<String, Long> m, Map<String, Long> p) {
         AuthUser writer = auth(u.get("writer"));
         List<Long> line = List.of(u.get("leader").getId(), u.get("plant").getId(), u.get("exec").getId());
 
         // 1) 승인 완료된 문서
         var approved = costSheetService.create(writer, new SaveRequest(
-                "버터쿠키 2026년 3분기 표준원가", p.get("FG-001").getId(), 2_000, bd(4_500), bd(880_000), bd(430_000),
+                "버터쿠키 2026년 3분기 표준원가", p.get("FG-0001"), 2_000, bd(4_500), bd(880_000), bd(430_000),
                 "3분기 표준원가 확정 건", butterCookieItems(m, 12_300), line));
         costSheetService.submit(writer, approved.id());
         costSheetService.approve(auth(u.get("leader")), approved.id(), "확인했습니다.");
@@ -118,7 +124,7 @@ public class DataInitializer implements ApplicationRunner {
 
         // 2) 팀장 승인 후 공장장 결재 대기
         var inProgress = costSheetService.create(writer, new SaveRequest(
-                "버터쿠키 2026년 4분기 원가 (버터 단가 인상 반영)", p.get("FG-001").getId(), 2_000, bd(4_500),
+                "버터쿠키 2026년 4분기 원가 (버터 단가 인상 반영)", p.get("FG-0001"), 2_000, bd(4_500),
                 bd(900_000), bd(450_000),
                 "무염버터 매입단가 12,300원 → 12,800원 인상분 반영", butterCookieItems(m, 12_800), line));
         costSheetService.submit(writer, inProgress.id());
@@ -126,43 +132,43 @@ public class DataInitializer implements ApplicationRunner {
 
         // 3) 팀장 결재 대기
         var waiting = costSheetService.create(writer, new SaveRequest(
-                "초코칩쿠키 신규 배합 원가", p.get("FG-002").getId(), 1_800, bd(4_800), bd(850_000), bd(420_000),
+                "초코칩쿠키 신규 배합 원가", p.get("FG-0002"), 1_800, bd(4_800), bd(850_000), bd(420_000),
                 "초콜릿칩 함량 15% → 18% 상향", List.of(
-                item(m, "M-001", "140", "2"), item(m, "M-002", "75", "2"), item(m, "M-003", "85", "1.5"),
-                item(m, "M-004", "35", "3"), item(m, "M-008", "12", "1"), item(m, "M-009", "58", "1"),
-                item(m, "M-006", "1.2", "0"),
-                item(m, "P-001", "16200", "1"), item(m, "P-002", "1800", "1"), item(m, "P-003", "1800", "1"),
-                item(m, "P-004", "90", "0")),
+                item(m, "M-0001", "140", "2"), item(m, "M-0002", "75", "2"), item(m, "M-0003", "85", "1.5"),
+                item(m, "M-0004", "35", "3"), item(m, "M-0008", "12", "1"), item(m, "M-0009", "58", "1"),
+                item(m, "M-0006", "1.2", "0"),
+                item(m, "P-0001", "16200", "1"), item(m, "P-0002", "1800", "1"), item(m, "P-0003", "1800", "1"),
+                item(m, "P-0004", "90", "0")),
                 List.of(u.get("leader").getId(), u.get("plant").getId())));
         costSheetService.submit(writer, waiting.id());
 
         // 4) 임시저장
         costSheetService.create(writer, new SaveRequest(
-                "우유식빵 원가 검토 (초안)", p.get("FG-003").getId(), 3_000, bd(3_900), bd(1_100_000), bd(600_000),
+                "우유식빵 원가 검토 (초안)", p.get("FG-0003"), 3_000, bd(3_900), bd(1_100_000), bd(600_000),
                 null, List.of(
-                item(m, "M-010", "720", "1.5"), item(m, "M-012", "380", "1"), item(m, "M-002", "60", "1"),
-                item(m, "M-003", "45", "1"), item(m, "M-011", "14", "0"), item(m, "M-006", "13", "0"),
-                item(m, "P-005", "3000", "1")),
+                item(m, "M-0010", "720", "1.5"), item(m, "M-0012", "380", "1"), item(m, "M-0002", "60", "1"),
+                item(m, "M-0003", "45", "1"), item(m, "M-0011", "14", "0"), item(m, "M-0006", "13", "0"),
+                item(m, "P-0005", "3000", "1")),
                 List.of(u.get("leader").getId())));
     }
 
-    private static List<ItemRequest> butterCookieItems(Map<String, Material> m, long butterPrice) {
+    private static List<ItemRequest> butterCookieItems(Map<String, Long> m, long butterPrice) {
         return List.of(
-                item(m, "M-001", "160", "2"),
-                item(m, "M-002", "90", "2"),
-                new ItemRequest(m.get("M-003").getId(), new BigDecimal("110"), BigDecimal.valueOf(butterPrice), new BigDecimal("1.5")),
-                item(m, "M-004", "40", "3"),
-                item(m, "M-005", "10", "1"),
-                item(m, "M-006", "1.5", "0"),
-                item(m, "M-007", "0.4", "0"),
-                item(m, "P-001", "20000", "1"),
-                item(m, "P-002", "2000", "1"),
-                item(m, "P-003", "2000", "1"),
-                item(m, "P-004", "100", "0"));
+                item(m, "M-0001", "160", "2"),
+                item(m, "M-0002", "90", "2"),
+                new ItemRequest(m.get("M-0003"), new BigDecimal("110"), BigDecimal.valueOf(butterPrice), new BigDecimal("1.5")),
+                item(m, "M-0004", "40", "3"),
+                item(m, "M-0005", "10", "1"),
+                item(m, "M-0006", "1.5", "0"),
+                item(m, "M-0007", "0.4", "0"),
+                item(m, "P-0001", "20000", "1"),
+                item(m, "P-0002", "2000", "1"),
+                item(m, "P-0003", "2000", "1"),
+                item(m, "P-0004", "100", "0"));
     }
 
-    private static ItemRequest item(Map<String, Material> m, String code, String qty, String loss) {
-        return new ItemRequest(m.get(code).getId(), new BigDecimal(qty), null, new BigDecimal(loss));
+    private static ItemRequest item(Map<String, Long> m, String code, String qty, String loss) {
+        return new ItemRequest(m.get(code), new BigDecimal(qty), null, new BigDecimal(loss));
     }
 
     private static AuthUser auth(User user) {
