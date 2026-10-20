@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import type { CostSheetSaveRequest, Material, Product, User } from '../api/types';
@@ -24,6 +24,13 @@ interface PackRow {
   lossRate: string;
   unitPrice: string;
 }
+
+type TabKey = 'basic' | 'bom' | 'approval';
+const TABS: { key: TabKey; label: string }[] = [
+  { key: 'basic', label: '기본정보' },
+  { key: 'bom', label: '배합비' },
+  { key: 'approval', label: '결재선' },
+];
 
 let rowSeq = 0;
 const newRawRow = (): RawRow => ({ key: ++rowSeq, materialId: '', ratio: '', lossRate: '0', unitPrice: '' });
@@ -53,6 +60,8 @@ export default function CostSheetFormPage() {
   const [packRows, setPackRows] = useState<PackRow[]>([newPackRow()]);
   const [approverIds, setApproverIds] = useState<number[]>([]);
   const [approverToAdd, setApproverToAdd] = useState('');
+  const [tab, setTab] = useState<TabKey>('basic');
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -166,7 +175,22 @@ export default function CostSheetFormPage() {
     approverIds,
   });
 
+  /**
+   * 필수 입력 검사. 숨겨진 탭의 칸은 브라우저가 알려주지 못하므로,
+   * 처음 비어 있는 칸이 있는 탭으로 이동한 뒤 브라우저 안내를 띄운다.
+   */
+  const validate = () => {
+    const form = formRef.current;
+    if (!form || form.checkValidity()) return true;
+    const invalid = form.querySelector<HTMLElement>(':invalid');
+    const pane = invalid?.closest<HTMLElement>('[data-tab]')?.dataset.tab as TabKey | undefined;
+    if (pane) setTab(pane);
+    setTimeout(() => form.reportValidity(), 50);
+    return false;
+  };
+
   const save = async (submitAfter: boolean) => {
+    if (!validate()) return;
     if (submitAfter && !window.confirm('저장 후 바로 결재를 상신할까요? 상신 후에는 수정할 수 없습니다.')) return;
     setBusy(true);
     setError(null);
@@ -198,14 +222,34 @@ export default function CostSheetFormPage() {
   const packMaterials = materials.filter((m) => m.type === 'PACKAGING' && m.active);
   const selectableApprovers = approvers.filter((u) => !approverIds.includes(u.id));
   const ratioOk = Math.abs(ratioSum - 100) < 0.0005;
+  const hasRaw = rawRows.some((r) => r.materialId);
+  const tabIdx = TABS.findIndex((t) => t.key === tab);
+  const pane = (key: TabKey) => ({ 'data-tab': key, role: 'tabpanel', className: tab === key ? '' : 'd-none' });
 
   return (
-    <form onSubmit={onSubmit}>
+    <form ref={formRef} onSubmit={onSubmit} noValidate>
       <h1 className="h4 mb-3">{editId ? '원가계산서 수정' : '새 원가계산서'}</h1>
       <ErrorAlert message={error} />
 
-      <div className="card shadow-sm mb-3">
-        <div className="card-header bg-white fw-semibold">기본 정보</div>
+      <ul className="nav nav-tabs" role="tablist">
+        {TABS.map((t) => (
+          <li key={t.key} className="nav-item" role="presentation">
+            <button type="button" role="tab" aria-selected={tab === t.key}
+              className={`nav-link ${tab === t.key ? 'active fw-semibold' : ''}`} onClick={() => setTab(t.key)}>
+              {t.label}
+              {t.key === 'bom' && hasRaw && !ratioOk && (
+                <i className="bi bi-exclamation-triangle-fill text-warning ms-1" title="배합비 합계가 100%가 아닙니다" />
+              )}
+              {t.key === 'approval' && (
+                <span className={`badge rounded-pill ms-1 ${approverIds.length ? 'text-bg-primary' : 'text-bg-secondary'}`}>{approverIds.length}</span>
+              )}
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <div {...pane('basic')}>
+      <div className="card shadow-sm mb-3 tab-card">
         <div className="card-body row g-3">
           <div className="col-md-6">
             <label className="form-label" htmlFor="product">제품 *</label>
@@ -263,8 +307,10 @@ export default function CostSheetFormPage() {
         </div>
       </div>
 
-      <div className="card shadow-sm mb-3">
-        <div className="card-header bg-white fw-semibold">배합표</div>
+      </div>
+
+      <div {...pane('bom')}>
+      <div className="card shadow-sm mb-3 tab-card">
         <div className="card-body p-2 p-md-3 vstack gap-4">
           <section aria-labelledby="raw-title">
             <div className="d-flex justify-content-between align-items-center mb-2">
@@ -290,7 +336,7 @@ export default function CostSheetFormPage() {
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">배합비(%)</span>
-                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비"
+                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비" required={!!r.materialId}
                       value={r.ratio} onChange={(e) => updateRaw(r.key, { ratio: e.target.value })} />
                   </label>
                   <label className="bom-cell">
@@ -357,7 +403,7 @@ export default function CostSheetFormPage() {
                   <label className="bom-cell">
                     <span className="cell-label">투입량</span>
                     <div className="input-group input-group-sm">
-                      <input type="number" step="any" min={0} className="form-control text-end" aria-label="투입량"
+                      <input type="number" step="any" min={0} className="form-control text-end" aria-label="투입량" required={!!r.materialId}
                         value={r.quantity} onChange={(e) => updatePack(r.key, { quantity: e.target.value })} />
                       <span className="input-group-text unit-label">{packCalc[idx].unit}</span>
                     </div>
@@ -390,21 +436,10 @@ export default function CostSheetFormPage() {
         </div>
       </div>
 
-      <h2 className="h6 text-muted mb-2">원가 미리보기</h2>
-      <CostSummaryCards
-        materialCost={materialCost}
-        packagingCost={packagingCost}
-        laborCost={num(laborCost)}
-        overheadCost={num(overheadCost)}
-        totalCost={preview.totalCost}
-        unitCost={preview.unitCost}
-        salePrice={num(salePrice)}
-        marginRate={preview.marginRate}
-        productionQty={num(productionQty)}
-      />
+      </div>
 
-      <div className="card shadow-sm mb-3">
-        <div className="card-header bg-white fw-semibold">결재선</div>
+      <div {...pane('approval')}>
+      <div className="card shadow-sm mb-3 tab-card">
         <div className="card-body">
           <div className="d-flex gap-2 mb-3">
             <select className="form-select" aria-label="결재자 선택" value={approverToAdd} onChange={(e) => setApproverToAdd(e.target.value)}>
@@ -447,8 +482,33 @@ export default function CostSheetFormPage() {
           )}
         </div>
       </div>
+      </div>
 
-      <div className="d-flex flex-wrap gap-2 justify-content-end mb-5">
+      <h2 className="h6 text-muted mb-2">원가 미리보기</h2>
+      <CostSummaryCards
+        materialCost={materialCost}
+        packagingCost={packagingCost}
+        laborCost={num(laborCost)}
+        overheadCost={num(overheadCost)}
+        totalCost={preview.totalCost}
+        unitCost={preview.unitCost}
+        salePrice={num(salePrice)}
+        marginRate={preview.marginRate}
+        productionQty={num(productionQty)}
+      />
+
+      <div className="d-flex flex-wrap gap-2 justify-content-between mb-5">
+        <div className="d-flex gap-2">
+          <button type="button" className="btn btn-outline-secondary" disabled={tabIdx === 0}
+            onClick={() => setTab(TABS[tabIdx - 1].key)}>
+            <i className="bi bi-chevron-left" /> 이전
+          </button>
+          <button type="button" className="btn btn-outline-secondary" disabled={tabIdx === TABS.length - 1}
+            onClick={() => setTab(TABS[tabIdx + 1].key)}>
+            다음 <i className="bi bi-chevron-right" />
+          </button>
+        </div>
+        <div className="d-flex flex-wrap gap-2">
         <button type="button" className="btn btn-light" onClick={() => navigate(-1)} disabled={busy}>취소</button>
         <button type="submit" className="btn btn-outline-primary" disabled={busy}>
           <i className="bi bi-save me-1" />임시저장
@@ -457,6 +517,7 @@ export default function CostSheetFormPage() {
           {busy && <span className="spinner-border spinner-border-sm me-2" />}
           <i className="bi bi-send me-1" />저장 후 상신
         </button>
+        </div>
       </div>
     </form>
   );

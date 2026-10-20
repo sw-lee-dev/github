@@ -191,3 +191,9 @@ td, th { font-variant-numeric: tabular-nums; }
     margin-bottom: 2px;
   }
 }
+
+/* 탭 바로 아래 카드: 탭과 붙어 보이도록 위쪽 모서리/테두리 정리 */
+.tab-card { border-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; }
+.nav-tabs .nav-link { color: var(--bs-secondary-color); }
+.nav-tabs .nav-link:hover { color: var(--brand); }
+.nav-tabs .nav-link.active { color: var(--brand); }
