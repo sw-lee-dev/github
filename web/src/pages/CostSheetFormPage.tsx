@@ -236,8 +236,21 @@ export default function CostSheetFormPage() {
 
   if (!loaded) return <Loading />;
 
-  const rawMaterials = materials.filter((m) => m.type === 'RAW' && m.active);
-  const packMaterials = materials.filter((m) => m.type === 'PACKAGING' && m.active);
+  /**
+   * 행별 자재 선택지. 같은 구역의 다른 행에서 이미 고른 자재는 빼고, 자기 행에서 고른 자재는 남긴다.
+   * (사용 중지된 자재라도 이미 선택된 값이면 표시)
+   */
+  const usedRaw = new Set(rawRows.map((r) => r.materialId).filter(Boolean));
+  const usedPack = new Set(packRows.map((r) => r.materialId).filter(Boolean));
+  const optionsFor = (type: Material['type'], used: Set<string>, current: string) =>
+    materials.filter((m) => {
+      const id = String(m.id);
+      if (m.type !== type) return false;
+      if (id === current) return true;
+      return m.active && !used.has(id);
+    });
+  const rawLeft = optionsFor('RAW', usedRaw, '').length;
+  const packLeft = optionsFor('PACKAGING', usedPack, '').length;
   const selectableApprovers = approvers.filter((u) => !approverIds.includes(u.id));
   const ratioOk = Math.abs(ratioSum - 100) < 0.0005;
   const hasRaw = rawRows.some((r) => r.materialId);
@@ -333,7 +346,8 @@ export default function CostSheetFormPage() {
           <section aria-labelledby="raw-title">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <h2 id="raw-title" className="h6 mb-0">원자재</h2>
-              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setRawRows((r) => [...r, newRawRow()])}>
+              <button type="button" className="btn btn-sm btn-outline-secondary" disabled={rawLeft === 0}
+                title={rawLeft === 0 ? '추가할 수 있는 원자재가 없습니다' : undefined} onClick={() => setRawRows((r) => [...r, newRawRow()])}>
                 <i className="bi bi-plus-lg me-1" />행 추가
               </button>
             </div>
@@ -349,7 +363,7 @@ export default function CostSheetFormPage() {
                     <select className="form-select form-select-sm" aria-label="원자재" value={r.materialId}
                       onChange={(e) => updateRaw(r.key, { materialId: e.target.value, unitPrice: priceOf(e.target.value) })}>
                       <option value="">원자재 선택</option>
-                      {rawMaterials.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
+                      {optionsFor('RAW', usedRaw, r.materialId).map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
                     </select>
                   </label>
                   <label className="bom-cell">
@@ -399,7 +413,8 @@ export default function CostSheetFormPage() {
           <section aria-labelledby="pack-title">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <h2 id="pack-title" className="h6 mb-0">포장자재</h2>
-              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setPackRows((r) => [...r, newPackRow()])}>
+              <button type="button" className="btn btn-sm btn-outline-secondary" disabled={packLeft === 0}
+                title={packLeft === 0 ? '추가할 수 있는 포장자재가 없습니다' : undefined} onClick={() => setPackRows((r) => [...r, newPackRow()])}>
                 <i className="bi bi-plus-lg me-1" />행 추가
               </button>
             </div>
@@ -415,7 +430,7 @@ export default function CostSheetFormPage() {
                     <select className="form-select form-select-sm" aria-label="포장자재" value={r.materialId}
                       onChange={(e) => updatePack(r.key, { materialId: e.target.value, unitPrice: priceOf(e.target.value) })}>
                       <option value="">포장자재 선택</option>
-                      {packMaterials.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
+                      {optionsFor('PACKAGING', usedPack, r.materialId).map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
                     </select>
                   </label>
                   <label className="bom-cell">

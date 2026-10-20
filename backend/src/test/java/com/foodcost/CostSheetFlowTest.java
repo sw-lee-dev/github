@@ -82,6 +82,19 @@ class CostSheetFlowTest {
     }
 
     @Test
+    void 같은_자재를_두_번_입력하면_400() throws Exception {
+        String writer = login("writer");
+        long flour = materialId(writer, "M-0001");
+        JsonNode err = json(mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(om.writeValueAsString(sheetBody(List.of(
+                                Map.of("materialId", flour, "ratio", 50),
+                                Map.of("materialId", flour, "ratio", 50)), List.of(userId(writer, "leader"))))))
+                .andExpect(status().isBadRequest()));
+        assertThat(err.get("message").asText()).isEqualTo("같은 자재를 두 번 입력할 수 없습니다: 박력분");
+    }
+
+    @Test
     void 원자재는_배합비_포장자재는_투입량이_필수() throws Exception {
         String writer = login("writer");
         List<Long> line = List.of(userId(writer, "leader"));

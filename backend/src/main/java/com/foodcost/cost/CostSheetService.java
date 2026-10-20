@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -125,6 +127,14 @@ public class CostSheetService {
                 .orElseThrow(() -> ApiException.badRequest("존재하지 않는 제품입니다."));
         sheet.updateContent(req.title().trim(), product, req.productionQty(), req.salePrice(),
                 req.laborCost(), req.overheadCost(), req.remark());
+
+        Set<Long> seen = new HashSet<>();
+        for (ItemRequest item : req.items()) {
+            if (!seen.add(item.materialId())) {
+                String name = materialRepository.findById(item.materialId()).map(Material::getName).orElse("id=" + item.materialId());
+                throw ApiException.badRequest("같은 자재를 두 번 입력할 수 없습니다: " + name);
+            }
+        }
 
         Map<Long, Material> materials = materialRepository
                 .findAllById(req.items().stream().map(ItemRequest::materialId).toList()).stream()
