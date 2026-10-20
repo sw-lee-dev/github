@@ -79,6 +79,8 @@ export interface MaterialPayload {
 export interface ProductPayload {
   name: string;
   spec: string | null;
+  /** 제품 1개당 무게(g) */
+  unitWeight: number;
   salePrice: number;
   active: boolean;
 }

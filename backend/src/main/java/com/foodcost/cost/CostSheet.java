@@ -26,6 +26,7 @@ import java.util.Optional;
 /**
  * 제조원가계산서 (결재 문서).
  * <pre>
+ * 총 생산량 = 제품 당 무게(g) × 생산수량 ÷ 1000 (kg)
  * 총원가   = 원재료비 + 포장재비 + 노무비 + 제조경비
  * 개당원가 = 총원가 ÷ 생산수량
  * 마진율   = (판매가 - 개당원가) ÷ 판매가 × 100
@@ -57,6 +58,14 @@ public class CostSheet extends BaseTimeEntity {
     /** 생산 1회(배치)당 생산수량(개) */
     @Column(nullable = false)
     private int productionQty;
+
+    /** 제품 1개당 무게(g) - 작성 시점 제품 값 스냅샷 */
+    @Column(nullable = false, precision = 12, scale = 3)
+    private BigDecimal unitWeight;
+
+    /** 총 생산량(kg) = 제품 당 무게(g) × 생산수량 ÷ 1000 */
+    @Column(nullable = false, precision = 15, scale = 3)
+    private BigDecimal totalOutput;
 
     /** 개당 판매가(원) */
     @Column(nullable = false, precision = 15, scale = 2)
@@ -118,8 +127,12 @@ public class CostSheet extends BaseTimeEntity {
         this.writer = writer;
     }
 
-    /** 품목 입력값. unitPrice 는 이미 자재 기준단가로 보정된 값이어야 한다. */
-    public record ItemLine(Material material, BigDecimal quantity, BigDecimal unitPrice, BigDecimal lossRate) {
+    /**
+     * 품목 입력값. unitPrice 는 이미 자재 기준단가로 보정된 값이어야 한다.
+     * 원자재는 ratio(배합비%), 포장자재는 quantity(투입량)를 사용한다.
+     */
+    public record ItemLine(Material material, BigDecimal ratio, BigDecimal quantity, BigDecimal unitPrice,
+                           BigDecimal lossRate) {
     }
 
     // ---------------------------------------------------------------- 작성/수정
@@ -130,6 +143,9 @@ public class CostSheet extends BaseTimeEntity {
         this.title = title;
         this.product = product;
         this.productionQty = productionQty;
+        this.unitWeight = product.getUnitWeight();
+        this.totalOutput = unitWeight.multiply(BigDecimal.valueOf(productionQty))
+                .divide(BigDecimal.valueOf(1000), 3, RoundingMode.HALF_UP);
         this.salePrice = salePrice;
         this.laborCost = laborCost;
         this.overheadCost = overheadCost;
@@ -141,8 +157,11 @@ public class CostSheet extends BaseTimeEntity {
         items.clear();
         int lineNo = 1;
         for (ItemLine line : lines) {
-            items.add(new CostSheetItem(this, lineNo++, line.material(), line.quantity(),
-                    line.unitPrice(), line.lossRate()));
+            items.add(line.material().getType() == MaterialType.RAW
+                    ? CostSheetItem.raw(this, lineNo++, line.material(), line.ratio(), line.unitPrice(),
+                    line.lossRate(), totalOutput)
+                    : CostSheetItem.packaging(this, lineNo++, line.material(), line.quantity(), line.unitPrice(),
+                    line.lossRate()));
         }
         recalculate();
     }

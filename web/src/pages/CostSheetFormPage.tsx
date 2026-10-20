@@ -4,19 +4,30 @@ import { api } from '../api/client';
 import type { CostSheetSaveRequest, Material, Product, User } from '../api/types';
 import CostSummaryCards from '../components/CostSummaryCards';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
-import { calcCost, lineAmount } from '../utils/cost';
-import { fmtWon } from '../utils/format';
+import { calcCost, packagingAmount, rawAmount, rawQuantity, totalOutputKg } from '../utils/cost';
+import { fmtNum, fmtWon } from '../utils/format';
 
-interface ItemRow {
+/** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비 × (1 − 손실률)로 자동 계산 */
+interface RawRow {
+  key: number;
+  materialId: string;
+  ratio: string;
+  lossRate: string;
+  unitPrice: string;
+}
+
+/** 포장자재: 투입량 직접 입력 */
+interface PackRow {
   key: number;
   materialId: string;
   quantity: string;
-  unitPrice: string;
   lossRate: string;
+  unitPrice: string;
 }
 
 let rowSeq = 0;
-const newRow = (): ItemRow => ({ key: ++rowSeq, materialId: '', quantity: '', unitPrice: '', lossRate: '0' });
+const newRawRow = (): RawRow => ({ key: ++rowSeq, materialId: '', ratio: '', lossRate: '0', unitPrice: '' });
+const newPackRow = (): PackRow => ({ key: ++rowSeq, materialId: '', quantity: '', lossRate: '0', unitPrice: '' });
 const num = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
 export default function CostSheetFormPage() {
@@ -38,7 +49,8 @@ export default function CostSheetFormPage() {
   const [laborCost, setLaborCost] = useState('0');
   const [overheadCost, setOverheadCost] = useState('0');
   const [remark, setRemark] = useState('');
-  const [items, setItems] = useState<ItemRow[]>([newRow()]);
+  const [rawRows, setRawRows] = useState<RawRow[]>([newRawRow()]);
+  const [packRows, setPackRows] = useState<PackRow[]>([newPackRow()]);
   const [approverIds, setApproverIds] = useState<number[]>([]);
   const [approverToAdd, setApproverToAdd] = useState('');
 
@@ -58,12 +70,19 @@ export default function CostSheetFormPage() {
         setLaborCost(String(s.laborCost));
         setOverheadCost(String(s.overheadCost));
         setRemark(s.remark ?? '');
-        setItems(s.items.map((i) => ({
+        setRawRows(s.items.filter((i) => i.materialType === 'RAW').map((i) => ({
+          key: ++rowSeq,
+          materialId: String(i.materialId),
+          ratio: i.ratio == null ? '' : String(i.ratio),
+          lossRate: String(i.lossRate),
+          unitPrice: String(i.unitPrice),
+        })));
+        setPackRows(s.items.filter((i) => i.materialType === 'PACKAGING').map((i) => ({
           key: ++rowSeq,
           materialId: String(i.materialId),
           quantity: String(i.quantity),
-          unitPrice: String(i.unitPrice),
           lossRate: String(i.lossRate),
+          unitPrice: String(i.unitPrice),
         })));
         setApproverIds(s.steps.map((st) => st.approverId));
       }
@@ -72,26 +91,32 @@ export default function CostSheetFormPage() {
   }, [editId]);
 
   const materialById = useMemo(() => new Map(materials.map((m) => [m.id, m])), [materials]);
-  const approverById = useMemo(() => new Map(approvers.map((u) => [u.id, u])), [approvers]);
+  const product = products.find((x) => x.id === Number(productId));
+  const totalKg = totalOutputKg(product?.unitWeight ?? 0, num(productionQty));
 
-  const preview = useMemo(() => {
-    const lines = items
-      .filter((r) => r.materialId)
-      .map((r) => ({
-        type: materialById.get(Number(r.materialId))?.type ?? 'RAW',
-        quantity: num(r.quantity),
-        unitPrice: num(r.unitPrice),
-        lossRate: num(r.lossRate),
-      }));
-    return calcCost(lines, num(laborCost), num(overheadCost), num(productionQty), num(salePrice));
-  }, [items, laborCost, overheadCost, productionQty, salePrice, materialById]);
+  // 원자재 행별 투입량/금액, 포장자재 행별 금액
+  const rawCalc = useMemo(() => rawRows.map((r) => {
+    const unit = materialById.get(Number(r.materialId))?.unit ?? 'kg';
+    const quantity = r.materialId ? rawQuantity(totalKg, num(r.ratio), num(r.lossRate), unit) : 0;
+    return { unit, quantity, amount: rawAmount(quantity, num(r.unitPrice)) };
+  }), [rawRows, materialById, totalKg]);
+  const packCalc = useMemo(() => packRows.map((r) => ({
+    unit: materialById.get(Number(r.materialId))?.unit ?? '단위',
+    amount: r.materialId ? packagingAmount(num(r.quantity), num(r.unitPrice), num(r.lossRate)) : 0,
+  })), [packRows, materialById]);
 
-  const updateItem = (key: number, patch: Partial<ItemRow>) =>
-    setItems((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const ratioSum = Math.round(rawRows.filter((r) => r.materialId).reduce((acc, r) => acc + num(r.ratio), 0) * 1000) / 1000;
+  const materialCost = rawCalc.reduce((acc, c) => acc + c.amount, 0);
+  const packagingCost = packCalc.reduce((acc, c) => acc + c.amount, 0);
+  const preview = calcCost(materialCost, packagingCost, num(laborCost), num(overheadCost), num(productionQty), num(salePrice));
 
-  const selectMaterial = (key: number, materialId: string) => {
+  const updateRaw = (key: number, patch: Partial<RawRow>) =>
+    setRawRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const updatePack = (key: number, patch: Partial<PackRow>) =>
+    setPackRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  const priceOf = (materialId: string) => {
     const m = materialById.get(Number(materialId));
-    updateItem(key, { materialId, unitPrice: m ? String(m.unitPrice) : '' });
+    return m ? String(m.unitPrice) : '';
   };
 
   const selectProduct = (value: string) => {
@@ -102,6 +127,8 @@ export default function CostSheetFormPage() {
       if (!title.trim()) setTitle(`${prod.name} 제조원가`);
     }
   };
+
+  const approverById = useMemo(() => new Map(approvers.map((u) => [u.id, u])), [approvers]);
 
   const moveApprover = (idx: number, dir: -1 | 1) =>
     setApproverIds((ids) => {
@@ -120,14 +147,22 @@ export default function CostSheetFormPage() {
     laborCost: num(laborCost),
     overheadCost: num(overheadCost),
     remark: remark.trim() || null,
-    items: items
-      .filter((r) => r.materialId)
-      .map((r) => ({
+    items: [
+      ...rawRows.filter((r) => r.materialId).map((r) => ({
         materialId: Number(r.materialId),
+        ratio: num(r.ratio),
+        quantity: null,
+        unitPrice: r.unitPrice.trim() === '' ? null : num(r.unitPrice),
+        lossRate: num(r.lossRate),
+      })),
+      ...packRows.filter((r) => r.materialId).map((r) => ({
+        materialId: Number(r.materialId),
+        ratio: null,
         quantity: num(r.quantity),
         unitPrice: r.unitPrice.trim() === '' ? null : num(r.unitPrice),
         lossRate: num(r.lossRate),
       })),
+    ],
     approverIds,
   });
 
@@ -162,6 +197,7 @@ export default function CostSheetFormPage() {
   const rawMaterials = materials.filter((m) => m.type === 'RAW' && m.active);
   const packMaterials = materials.filter((m) => m.type === 'PACKAGING' && m.active);
   const selectableApprovers = approvers.filter((u) => !approverIds.includes(u.id));
+  const ratioOk = Math.abs(ratioSum - 100) < 0.0005;
 
   return (
     <form onSubmit={onSubmit}>
@@ -176,7 +212,9 @@ export default function CostSheetFormPage() {
             <select id="product" className="form-select" value={productId} onChange={(e) => selectProduct(e.target.value)} required>
               <option value="">선택하세요</option>
               {products.filter((p) => p.active || String(p.id) === productId).map((p) => (
-                <option key={p.id} value={p.id}>{p.code} · {p.name} {p.spec ? `(${p.spec})` : ''}</option>
+                <option key={p.id} value={p.id}>
+                  {p.code} · {p.name} {p.spec ? `(${p.spec})` : ''} · {fmtNum(p.unitWeight)}g
+                </option>
               ))}
             </select>
           </div>
@@ -205,6 +243,19 @@ export default function CostSheetFormPage() {
               onChange={(e) => setOverheadCost(e.target.value)} required />
             <div className="form-text">전력·가스·감가상각 등</div>
           </div>
+          <div className="col-12 col-md-6">
+            <label className="form-label" htmlFor="totalOutput">총 생산량 (자동 계산)</label>
+            <div className="input-group">
+              <input id="totalOutput" className="form-control text-end fw-semibold bg-light" readOnly tabIndex={-1}
+                value={product && num(productionQty) > 0 ? fmtNum(totalKg) : ''} placeholder="제품과 배치 생산수량을 입력하세요" />
+              <span className="input-group-text">kg</span>
+            </div>
+            {product && num(productionQty) > 0 && (
+              <div className="form-text">
+                제품 당 무게 {fmtNum(product.unitWeight)}g × 배치 생산수량 {num(productionQty).toLocaleString()}개
+              </div>
+            )}
+          </div>
           <div className="col-12">
             <label className="form-label" htmlFor="remark">비고 (변경 사유 등)</label>
             <textarea id="remark" className="form-control" rows={2} value={remark} onChange={(e) => setRemark(e.target.value)} maxLength={2000} />
@@ -213,60 +264,136 @@ export default function CostSheetFormPage() {
       </div>
 
       <div className="card shadow-sm mb-3">
-        <div className="card-header bg-white d-flex justify-content-between align-items-center">
-          <span className="fw-semibold">배합표 (원재료·포장재)</span>
-          <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setItems((r) => [...r, newRow()])}>
-            <i className="bi bi-plus-lg me-1" />행 추가
-          </button>
-        </div>
-        <div className="card-body p-2 p-md-3">
-          <div className="d-none d-md-grid item-grid item-grid-head small text-muted px-1 mb-1">
-            <span>자재</span><span className="text-end">투입량</span><span className="text-end">단가(원)</span>
-            <span className="text-end">손실률(%)</span><span className="text-end">금액(원)</span><span />
-          </div>
-          <div className="vstack gap-2">
-            {items.map((r) => {
-              const m = materialById.get(Number(r.materialId));
-              return (
-                <div key={r.key} className="item-grid item-row">
-                  <select className="form-select form-select-sm" aria-label="자재" value={r.materialId}
-                    onChange={(e) => selectMaterial(r.key, e.target.value)}>
-                    <option value="">자재 선택</option>
-                    <optgroup label="원재료">
+        <div className="card-header bg-white fw-semibold">배합표</div>
+        <div className="card-body p-2 p-md-3 vstack gap-4">
+          <section aria-labelledby="raw-title">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h2 id="raw-title" className="h6 mb-0">원자재</h2>
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setRawRows((r) => [...r, newRawRow()])}>
+                <i className="bi bi-plus-lg me-1" />행 추가
+              </button>
+            </div>
+            <div className="bom-row bom-raw bom-head d-none d-md-grid" aria-hidden="true">
+              <span>자재</span><span className="text-end">배합비(%)</span><span className="text-end">손실률(%)</span>
+              <span className="text-end">투입량</span><span className="text-end">단가(원)</span><span className="text-end">금액(원)</span><span />
+            </div>
+            <div className="vstack gap-2">
+              {rawRows.map((r, idx) => (
+                <div key={r.key} className="bom-row bom-raw">
+                  <label className="bom-cell bom-material">
+                    <span className="cell-label">자재</span>
+                    <select className="form-select form-select-sm" aria-label="원자재" value={r.materialId}
+                      onChange={(e) => updateRaw(r.key, { materialId: e.target.value, unitPrice: priceOf(e.target.value) })}>
+                      <option value="">원자재 선택</option>
                       {rawMaterials.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
-                    </optgroup>
-                    <optgroup label="포장재">
-                      {packMaterials.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
-                    </optgroup>
-                  </select>
-                  <div className="input-group input-group-sm">
-                    <input type="number" step="any" min={0} className="form-control text-end" aria-label="투입량"
-                      placeholder="투입량" value={r.quantity} onChange={(e) => updateItem(r.key, { quantity: e.target.value })} />
-                    <span className="input-group-text unit-label">{m?.unit ?? '단위'}</span>
-                  </div>
-                  <input type="number" step="any" min={0} className="form-control form-control-sm text-end" aria-label="단가"
-                    placeholder="단가" value={r.unitPrice} onChange={(e) => updateItem(r.key, { unitPrice: e.target.value })} />
-                  <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="손실률"
-                    placeholder="손실률" value={r.lossRate} onChange={(e) => updateItem(r.key, { lossRate: e.target.value })} />
-                  <div className="text-end fw-medium small item-amount">
-                    {fmtWon(lineAmount({ quantity: num(r.quantity), unitPrice: num(r.unitPrice), lossRate: num(r.lossRate) }))}
+                    </select>
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">배합비(%)</span>
+                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비"
+                      value={r.ratio} onChange={(e) => updateRaw(r.key, { ratio: e.target.value })} />
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">손실률(%)</span>
+                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="손실률"
+                      value={r.lossRate} onChange={(e) => updateRaw(r.key, { lossRate: e.target.value })} />
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">투입량</span>
+                    <div className="input-group input-group-sm">
+                      <input className="form-control text-end bg-light" readOnly tabIndex={-1} aria-label="투입량(자동)"
+                        value={r.materialId ? fmtNum(rawCalc[idx].quantity) : ''} />
+                      <span className="input-group-text unit-label">{rawCalc[idx].unit}</span>
+                    </div>
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">단가(원)</span>
+                    <input type="number" step="any" min={0} className="form-control form-control-sm text-end" aria-label="단가"
+                      value={r.unitPrice} onChange={(e) => updateRaw(r.key, { unitPrice: e.target.value })} />
+                  </label>
+                  <div className="bom-cell text-end fw-medium small">
+                    <span className="cell-label">금액(원)</span>{fmtWon(rawCalc[idx].amount)}
                   </div>
                   <button type="button" className="btn btn-sm btn-outline-danger" aria-label="행 삭제"
-                    onClick={() => setItems((rows) => rows.filter((x) => x.key !== r.key))}>
+                    onClick={() => setRawRows((rows) => rows.filter((x) => x.key !== r.key))}>
                     <i className="bi bi-x-lg" />
                   </button>
                 </div>
-              );
-            })}
-          </div>
-          <div className="form-text mt-2">금액 = 투입량 × 단가 × (1 + 손실률/100). 단가는 자재 기준단가가 자동으로 들어가며 수정할 수 있습니다.</div>
+              ))}
+            </div>
+            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 small">
+              <span>
+                배합비 합계{' '}
+                <span className={`badge ${ratioOk ? 'text-bg-success' : 'text-bg-warning'}`} data-testid="ratio-sum">{fmtNum(ratioSum)}%</span>
+                {!ratioOk && <span className="text-warning-emphasis ms-2">합계가 100%가 되도록 입력하세요.</span>}
+              </span>
+              <span>원자재 합계 <strong>{fmtWon(materialCost)}</strong>원</span>
+            </div>
+            <div className="form-text">투입량 = 총 생산량 × 배합비% × (1 − 손실률%), 금액 = 투입량 × 단가</div>
+          </section>
+
+          <section aria-labelledby="pack-title">
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <h2 id="pack-title" className="h6 mb-0">포장자재</h2>
+              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setPackRows((r) => [...r, newPackRow()])}>
+                <i className="bi bi-plus-lg me-1" />행 추가
+              </button>
+            </div>
+            <div className="bom-row bom-pack bom-head d-none d-md-grid" aria-hidden="true">
+              <span>자재</span><span className="text-end">투입량</span><span className="text-end">손실률(%)</span>
+              <span className="text-end">단가(원)</span><span className="text-end">금액(원)</span><span />
+            </div>
+            <div className="vstack gap-2">
+              {packRows.map((r, idx) => (
+                <div key={r.key} className="bom-row bom-pack">
+                  <label className="bom-cell bom-material">
+                    <span className="cell-label">자재</span>
+                    <select className="form-select form-select-sm" aria-label="포장자재" value={r.materialId}
+                      onChange={(e) => updatePack(r.key, { materialId: e.target.value, unitPrice: priceOf(e.target.value) })}>
+                      <option value="">포장자재 선택</option>
+                      {packMaterials.map((x) => <option key={x.id} value={x.id}>{x.name} ({x.code})</option>)}
+                    </select>
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">투입량</span>
+                    <div className="input-group input-group-sm">
+                      <input type="number" step="any" min={0} className="form-control text-end" aria-label="투입량"
+                        value={r.quantity} onChange={(e) => updatePack(r.key, { quantity: e.target.value })} />
+                      <span className="input-group-text unit-label">{packCalc[idx].unit}</span>
+                    </div>
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">손실률(%)</span>
+                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="손실률"
+                      value={r.lossRate} onChange={(e) => updatePack(r.key, { lossRate: e.target.value })} />
+                  </label>
+                  <label className="bom-cell">
+                    <span className="cell-label">단가(원)</span>
+                    <input type="number" step="any" min={0} className="form-control form-control-sm text-end" aria-label="단가"
+                      value={r.unitPrice} onChange={(e) => updatePack(r.key, { unitPrice: e.target.value })} />
+                  </label>
+                  <div className="bom-cell text-end fw-medium small">
+                    <span className="cell-label">금액(원)</span>{fmtWon(packCalc[idx].amount)}
+                  </div>
+                  <button type="button" className="btn btn-sm btn-outline-danger" aria-label="행 삭제"
+                    onClick={() => setPackRows((rows) => rows.filter((x) => x.key !== r.key))}>
+                    <i className="bi bi-x-lg" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="d-flex justify-content-end mt-2 small">
+              <span>포장자재 합계 <strong>{fmtWon(packagingCost)}</strong>원</span>
+            </div>
+            <div className="form-text">금액 = 투입량 × 단가 × (1 + 손실률%). 단가는 자재 기준단가가 자동으로 들어가며 수정할 수 있습니다.</div>
+          </section>
         </div>
       </div>
 
       <h2 className="h6 text-muted mb-2">원가 미리보기</h2>
       <CostSummaryCards
-        materialCost={preview.materialCost}
-        packagingCost={preview.packagingCost}
+        materialCost={materialCost}
+        packagingCost={packagingCost}
         laborCost={num(laborCost)}
         overheadCost={num(overheadCost)}
         totalCost={preview.totalCost}

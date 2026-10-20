@@ -35,6 +35,8 @@ export interface Product {
   code: string;
   name: string;
   spec: string | null;
+  /** 제품 1개당 무게(g) */
+  unitWeight: number;
   salePrice: number;
   active: boolean;
 }
@@ -64,6 +66,8 @@ export interface CostSheetItem {
   materialType: MaterialType;
   materialTypeLabel: string;
   unit: string;
+  /** 배합비(%) - 원자재만 */
+  ratio: number | null;
   quantity: number;
   unitPrice: number;
   lossRate: number;
@@ -108,6 +112,10 @@ export interface CostSheetDetail {
   productName: string;
   productSpec: string | null;
   productionQty: number;
+  /** 제품 1개당 무게(g) */
+  unitWeight: number;
+  /** 총 생산량(kg) */
+  totalOutput: number;
   salePrice: number;
   materialCost: number;
   packagingCost: number;
@@ -138,6 +146,7 @@ export interface CostSheetSaveRequest {
   laborCost: number;
   overheadCost: number;
   remark: string | null;
-  items: { materialId: number; quantity: number; unitPrice: number | null; lossRate: number | null }[];
+  /** 원자재는 ratio(배합비%), 포장자재는 quantity(투입량) */
+  items: { materialId: number; ratio: number | null; quantity: number | null; unitPrice: number | null; lossRate: number | null }[];
   approverIds: number[];
 }

@@ -101,14 +101,18 @@ public class DataInitializer implements ApplicationRunner {
     /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003 */
     private Map<String, Long> createProducts() {
         return List.of(
-                        new ProductRequest("버터쿠키", "200g (10입)", BigDecimal.valueOf(4_500), true),
-                        new ProductRequest("초코칩쿠키", "180g (9입)", BigDecimal.valueOf(4_800), true),
-                        new ProductRequest("우유식빵", "400g", BigDecimal.valueOf(3_900), true))
+                        new ProductRequest("버터쿠키", "200g (10입)", bd(200), bd(4_500), true),
+                        new ProductRequest("초코칩쿠키", "180g (9입)", bd(180), bd(4_800), true),
+                        new ProductRequest("우유식빵", "400g", bd(400), bd(3_900), true))
                 .stream()
                 .map(masterDataService::createProduct)
                 .collect(Collectors.toMap(r -> r.code(), r -> r.id()));
     }
 
+    /**
+     * 원자재는 배합비(%), 포장자재는 투입량으로 입력한다.
+     * 총 생산량: 버터쿠키 200g × 2,000개 = 400kg / 초코칩쿠키 180g × 1,800개 = 324kg / 우유식빵 400g × 3,000개 = 1,200kg
+     */
     private void createSampleSheets(Map<String, User> u, Map<String, Long> m, Map<String, Long> p) {
         AuthUser writer = auth(u.get("writer"));
         List<Long> line = List.of(u.get("leader").getId(), u.get("plant").getId(), u.get("exec").getId());
@@ -133,12 +137,12 @@ public class DataInitializer implements ApplicationRunner {
         // 3) 팀장 결재 대기
         var waiting = costSheetService.create(writer, new SaveRequest(
                 "초코칩쿠키 신규 배합 원가", p.get("FG-0002"), 1_800, bd(4_800), bd(850_000), bd(420_000),
-                "초콜릿칩 함량 15% → 18% 상향", List.of(
-                item(m, "M-0001", "140", "2"), item(m, "M-0002", "75", "2"), item(m, "M-0003", "85", "1.5"),
-                item(m, "M-0004", "35", "3"), item(m, "M-0008", "12", "1"), item(m, "M-0009", "58", "1"),
-                item(m, "M-0006", "1.2", "0"),
-                item(m, "P-0001", "16200", "1"), item(m, "P-0002", "1800", "1"), item(m, "P-0003", "1800", "1"),
-                item(m, "P-0004", "90", "0")),
+                "초콜릿칩 배합비 8% → 10.7% 상향", List.of(
+                raw(m, "M-0001", "36", "2"), raw(m, "M-0002", "19", "2"), raw(m, "M-0003", "22", "1.5"),
+                raw(m, "M-0004", "9", "3"), raw(m, "M-0008", "3", "1"), raw(m, "M-0009", "10.7", "1"),
+                raw(m, "M-0006", "0.3", "0"),
+                pack(m, "P-0001", "16200", "1"), pack(m, "P-0002", "1800", "1"), pack(m, "P-0003", "1800", "1"),
+                pack(m, "P-0004", "90", "0")),
                 List.of(u.get("leader").getId(), u.get("plant").getId())));
         costSheetService.submit(writer, waiting.id());
 
@@ -146,29 +150,36 @@ public class DataInitializer implements ApplicationRunner {
         costSheetService.create(writer, new SaveRequest(
                 "우유식빵 원가 검토 (초안)", p.get("FG-0003"), 3_000, bd(3_900), bd(1_100_000), bd(600_000),
                 null, List.of(
-                item(m, "M-0010", "720", "1.5"), item(m, "M-0012", "380", "1"), item(m, "M-0002", "60", "1"),
-                item(m, "M-0003", "45", "1"), item(m, "M-0011", "14", "0"), item(m, "M-0006", "13", "0"),
-                item(m, "P-0005", "3000", "1")),
+                raw(m, "M-0010", "58", "1.5"), raw(m, "M-0012", "31", "1"), raw(m, "M-0002", "5", "1"),
+                raw(m, "M-0003", "3.6", "1"), raw(m, "M-0011", "1.2", "0"), raw(m, "M-0006", "1.2", "0"),
+                pack(m, "P-0005", "3000", "1")),
                 List.of(u.get("leader").getId())));
     }
 
+    /** 버터쿠키 배합비 합계 100% */
     private static List<ItemRequest> butterCookieItems(Map<String, Long> m, long butterPrice) {
         return List.of(
-                item(m, "M-0001", "160", "2"),
-                item(m, "M-0002", "90", "2"),
-                new ItemRequest(m.get("M-0003"), new BigDecimal("110"), BigDecimal.valueOf(butterPrice), new BigDecimal("1.5")),
-                item(m, "M-0004", "40", "3"),
-                item(m, "M-0005", "10", "1"),
-                item(m, "M-0006", "1.5", "0"),
-                item(m, "M-0007", "0.4", "0"),
-                item(m, "P-0001", "20000", "1"),
-                item(m, "P-0002", "2000", "1"),
-                item(m, "P-0003", "2000", "1"),
-                item(m, "P-0004", "100", "0"));
+                raw(m, "M-0001", "40", "2"),
+                raw(m, "M-0002", "22", "2"),
+                new ItemRequest(m.get("M-0003"), new BigDecimal("26"), null, BigDecimal.valueOf(butterPrice), new BigDecimal("1.5")),
+                raw(m, "M-0004", "9", "3"),
+                raw(m, "M-0005", "2.5", "1"),
+                raw(m, "M-0006", "0.4", "0"),
+                raw(m, "M-0007", "0.1", "0"),
+                pack(m, "P-0001", "20000", "1"),
+                pack(m, "P-0002", "2000", "1"),
+                pack(m, "P-0003", "2000", "1"),
+                pack(m, "P-0004", "100", "0"));
     }
 
-    private static ItemRequest item(Map<String, Long> m, String code, String qty, String loss) {
-        return new ItemRequest(m.get(code), new BigDecimal(qty), null, new BigDecimal(loss));
+    /** 원자재: 배합비(%)와 손실률(%) */
+    private static ItemRequest raw(Map<String, Long> m, String code, String ratio, String loss) {
+        return new ItemRequest(m.get(code), new BigDecimal(ratio), null, null, new BigDecimal(loss));
+    }
+
+    /** 포장자재: 투입량과 손실률(%) */
+    private static ItemRequest pack(Map<String, Long> m, String code, String qty, String loss) {
+        return new ItemRequest(m.get(code), null, new BigDecimal(qty), null, new BigDecimal(loss));
     }
 
     private static AuthUser auth(User user) {

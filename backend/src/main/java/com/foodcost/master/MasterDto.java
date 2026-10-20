@@ -47,14 +47,17 @@ public final class MasterDto {
     public record ProductRequest(
             @NotBlank(message = "제품명을 입력하세요.") @Size(max = 100) String name,
             @Size(max = 100) String spec,
+            @NotNull(message = "제품 당 무게(g)를 입력하세요.") @DecimalMin(value = "0", inclusive = false, message = "제품 당 무게는 0보다 커야 합니다.") BigDecimal unitWeight,
             @NotNull(message = "판매가를 입력하세요.") @DecimalMin(value = "0", message = "판매가는 0 이상이어야 합니다.") BigDecimal salePrice,
             Boolean active
     ) {
     }
 
-    public record ProductResponse(Long id, String code, String name, String spec, BigDecimal salePrice, boolean active) {
+    public record ProductResponse(Long id, String code, String name, String spec, BigDecimal unitWeight,
+                                  BigDecimal salePrice, boolean active) {
         public static ProductResponse from(Product p) {
-            return new ProductResponse(p.getId(), p.getCode(), p.getName(), p.getSpec(), p.getSalePrice(), p.isActive());
+            return new ProductResponse(p.getId(), p.getCode(), p.getName(), p.getSpec(), p.getUnitWeight(),
+                    p.getSalePrice(), p.isActive());
         }
     }
 }

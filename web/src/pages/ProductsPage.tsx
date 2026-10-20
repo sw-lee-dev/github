@@ -4,9 +4,9 @@ import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
-import { fmtWon } from '../utils/format';
+import { fmtNum, fmtWon } from '../utils/format';
 
-const EMPTY: ProductPayload = { name: '', spec: '', salePrice: 0, active: true };
+const EMPTY: ProductPayload = { name: '', spec: '', unitWeight: 0, salePrice: 0, active: true };
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -57,15 +57,20 @@ export default function ProductsPage() {
               <input className="form-control form-control-sm bg-light" readOnly tabIndex={-1}
                 value={editingId ? editingCode : nextCode(PRODUCT_CODE_PREFIX, (rows ?? []).map((p) => p.code))}
                 title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />            </div>
-            <div className="col-6 col-md-3">
+            <div className="col-6 col-md-2">
               <label className="form-label small">제품명</label>
               <input className="form-control form-control-sm" value={form.name} required
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="col-6 col-md-3">
+            <div className="col-6 col-md-2">
               <label className="form-label small">규격</label>
               <input className="form-control form-control-sm" value={form.spec ?? ''}
                 onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="200g (10입)" />
+            </div>
+            <div className="col-6 col-md-2">
+              <label className="form-label small">제품 당 무게(g)</label>
+              <input type="number" step="any" min={0} className="form-control form-control-sm text-end" value={form.unitWeight} required
+                onChange={(e) => setForm({ ...form, unitWeight: Number(e.target.value) })} />
             </div>
             <div className="col-6 col-md-2">
               <label className="form-label small">판매가(원)</label>
@@ -92,7 +97,7 @@ export default function ProductsPage() {
           <table className="table table-hover table-sm align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>코드</th><th>제품명</th><th>규격</th><th className="text-end">판매가(원)</th><th>판매</th>
+                <th>코드</th><th>제품명</th><th>규격</th><th className="text-end">제품 당 무게(g)</th><th className="text-end">판매가(원)</th><th>판매</th>
                 {editable && <th />}
               </tr>
             </thead>
@@ -102,6 +107,7 @@ export default function ProductsPage() {
                   <td>{p.code}</td>
                   <td>{p.name}</td>
                   <td>{p.spec ?? '-'}</td>
+                  <td className="text-end">{fmtNum(p.unitWeight)}</td>
                   <td className="text-end">{fmtWon(p.salePrice)}</td>
                   <td>{p.active ? 'Y' : 'N'}</td>
                   {editable && (
@@ -109,7 +115,7 @@ export default function ProductsPage() {
                       <button className="btn btn-sm btn-link" onClick={() => {
                         setEditingId(p.id);
                         setEditingCode(p.code);
-                        setForm({ name: p.name, spec: p.spec, salePrice: p.salePrice, active: p.active });
+                        setForm({ name: p.name, spec: p.spec, unitWeight: p.unitWeight, salePrice: p.salePrice, active: p.active });
                         setError(null);
                         setNotice(null);
                       }}>수정</button>

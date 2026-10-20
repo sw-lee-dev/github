@@ -55,7 +55,7 @@ class MasterDataCodeTest {
     @Test
     void 제품_수정으로_코드는_바뀌지_않는다() {
         ProductResponse created = service.createProduct(product("신제품"));
-        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", "1kg", BigDecimal.TEN, true));
+        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", "1kg", BigDecimal.valueOf(1000), BigDecimal.TEN, true));
         assertThat(updated.code()).isEqualTo(created.code());
         assertThat(updated.name()).isEqualTo("이름변경");
     }
@@ -98,7 +98,7 @@ class MasterDataCodeTest {
     }
 
     private static ProductRequest product(String name) {
-        return new ProductRequest(name, null, BigDecimal.valueOf(1000), true);
+        return new ProductRequest(name, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1000), true);
     }
 
     private static MaterialRequest material(String name, MaterialType type) {

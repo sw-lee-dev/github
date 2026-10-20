@@ -153,6 +153,10 @@ export default function CostSheetDetailPage() {
             <dd className="col-8 col-md-4">{sheet.productName} <span className="text-muted">({sheet.productCode}{sheet.productSpec ? `, ${sheet.productSpec}` : ''})</span></dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">배치 생산수량</dt>
             <dd className="col-8 col-md-4">{sheet.productionQty.toLocaleString()}개</dd>
+            <dt className="col-4 col-md-2 text-muted fw-normal">제품 당 무게</dt>
+            <dd className="col-8 col-md-4">{fmtNum(sheet.unitWeight)}g</dd>
+            <dt className="col-4 col-md-2 text-muted fw-normal">총 생산량</dt>
+            <dd className="col-8 col-md-4 fw-semibold">{fmtNum(sheet.totalOutput)}kg</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">상신일시</dt>
             <dd className="col-8 col-md-4">{fmtDateTime(sheet.submittedAt)}</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">완료일시</dt>
@@ -169,8 +173,8 @@ export default function CostSheetDetailPage() {
 
       <CostSummaryCards {...sheet} />
 
-      <ItemTable title="원재료" items={sheet.items.filter((i) => i.materialType === 'RAW')} total={sheet.materialCost} />
-      <ItemTable title="포장재" items={sheet.items.filter((i) => i.materialType === 'PACKAGING')} total={sheet.packagingCost} />
+      <ItemTable title="원자재" raw items={sheet.items.filter((i) => i.materialType === 'RAW')} total={sheet.materialCost} />
+      <ItemTable title="포장자재" items={sheet.items.filter((i) => i.materialType === 'PACKAGING')} total={sheet.packagingCost} />
 
       <div className="card shadow-sm mb-3">
         <div className="card-header bg-white fw-semibold">결재 이력</div>
@@ -202,8 +206,10 @@ export default function CostSheetDetailPage() {
   );
 }
 
-function ItemTable({ title, items, total }: { title: string; items: CostSheetItem[]; total: number }) {
+/** 원자재(raw)는 배합비 열을 추가로 보여준다. */
+function ItemTable({ title, items, total, raw = false }: { title: string; items: CostSheetItem[]; total: number; raw?: boolean }) {
   if (items.length === 0) return null;
+  const ratioSum = items.reduce((acc, i) => acc + (i.ratio ?? 0), 0);
   return (
     <div className="card shadow-sm mb-3">
       <div className="card-header bg-white d-flex justify-content-between">
@@ -215,9 +221,10 @@ function ItemTable({ title, items, total }: { title: string; items: CostSheetIte
           <thead className="table-light">
             <tr>
               <th>자재명</th>
+              {raw && <th className="text-end">배합비</th>}
+              <th className="text-end">손실률</th>
               <th className="text-end">투입량</th>
               <th className="text-end">단가</th>
-              <th className="text-end">손실률</th>
               <th className="text-end">금액</th>
             </tr>
           </thead>
@@ -225,15 +232,26 @@ function ItemTable({ title, items, total }: { title: string; items: CostSheetIte
             {items.map((i) => (
               <tr key={i.id}>
                 <td>{i.materialName}</td>
+                {raw && <td className="text-end">{fmtNum(i.ratio)}%</td>}
+                <td className="text-end">{fmtNum(i.lossRate)}%</td>
                 <td className="text-end text-nowrap">{fmtNum(i.quantity)} {i.unit}</td>
                 <td className="text-end text-nowrap">{fmtWon(i.unitPrice)}</td>
-                <td className="text-end">{fmtNum(i.lossRate)}%</td>
                 <td className="text-end text-nowrap fw-medium">{fmtWon(i.amount)}</td>
               </tr>
             ))}
           </tbody>
+          {raw && (
+            <tfoot className="table-light">
+              <tr>
+                <td>배합비 합계</td>
+                <td className="text-end fw-semibold">{fmtNum(Math.round(ratioSum * 1000) / 1000)}%</td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
+      {raw && <div className="card-footer bg-white small text-muted">투입량 = 총 생산량 × 배합비% × (1 − 손실률%)</div>}
     </div>
   );
 }

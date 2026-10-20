@@ -6,6 +6,7 @@ import com.foodcost.common.ApiException;
 import com.foodcost.cost.CostSheetDto.*;
 import com.foodcost.master.Material;
 import com.foodcost.master.MaterialRepository;
+import com.foodcost.master.MaterialType;
 import com.foodcost.master.Product;
 import com.foodcost.master.ProductRepository;
 import com.foodcost.user.AuthUser;
@@ -114,7 +115,16 @@ public class CostSheetService {
             }
             BigDecimal unitPrice = item.unitPrice() != null ? item.unitPrice() : material.getUnitPrice();
             BigDecimal lossRate = item.lossRate() != null ? item.lossRate() : BigDecimal.ZERO;
-            return new CostSheet.ItemLine(material, item.quantity(), unitPrice, lossRate);
+            if (material.getType() == MaterialType.RAW) {
+                if (item.ratio() == null) {
+                    throw ApiException.badRequest("원자재 '" + material.getName() + "'의 배합비(%)를 입력하세요.");
+                }
+                return new CostSheet.ItemLine(material, item.ratio(), null, unitPrice, lossRate);
+            }
+            if (item.quantity() == null) {
+                throw ApiException.badRequest("포장자재 '" + material.getName() + "'의 투입량을 입력하세요.");
+            }
+            return new CostSheet.ItemLine(material, null, item.quantity(), unitPrice, lossRate);
         }).toList();
         sheet.replaceItems(lines);
 

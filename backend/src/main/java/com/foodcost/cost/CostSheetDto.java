@@ -32,9 +32,15 @@ public final class CostSheetDto {
     ) {
     }
 
+    /**
+     * 원자재는 ratio(배합비%)를, 포장자재는 quantity(투입량)를 입력한다.
+     * 원자재 투입량은 서버가 총 생산량 × 배합비 × (1 − 손실률)로 계산하므로 quantity 를 보내도 무시한다.
+     */
     public record ItemRequest(
             @NotNull(message = "자재를 선택하세요.") Long materialId,
-            @NotNull(message = "투입량을 입력하세요.") @DecimalMin(value = "0", inclusive = false, message = "투입량은 0보다 커야 합니다.") BigDecimal quantity,
+            @DecimalMin(value = "0", inclusive = false, message = "배합비는 0보다 커야 합니다.")
+            @DecimalMax(value = "100", message = "배합비는 100% 이하여야 합니다.") BigDecimal ratio,
+            @DecimalMin(value = "0", inclusive = false, message = "투입량은 0보다 커야 합니다.") BigDecimal quantity,
             /** 비우면 자재 기준단가 사용 */
             @DecimalMin(value = "0", message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
             @DecimalMin(value = "0", message = "손실률은 0 이상이어야 합니다.") @DecimalMax(value = "100", message = "손실률은 100 이하여야 합니다.") BigDecimal lossRate
@@ -80,6 +86,8 @@ public final class CostSheetDto {
             String productName,
             String productSpec,
             int productionQty,
+            BigDecimal unitWeight,
+            BigDecimal totalOutput,
             BigDecimal salePrice,
             BigDecimal materialCost,
             BigDecimal packagingCost,
@@ -104,7 +112,7 @@ public final class CostSheetDto {
         public static Detail of(CostSheet s, Long viewerId) {
             return new Detail(s.getId(), s.getDocNo(), s.getTitle(),
                     s.getProduct().getId(), s.getProduct().getCode(), s.getProduct().getName(), s.getProduct().getSpec(),
-                    s.getProductionQty(), s.getSalePrice(),
+                    s.getProductionQty(), s.getUnitWeight(), s.getTotalOutput(), s.getSalePrice(),
                     s.getMaterialCost(), s.getPackagingCost(), s.getLaborCost(), s.getOverheadCost(),
                     s.getTotalCost(), s.getUnitCost(), s.getMarginRate(), s.getRemark(),
                     s.getStatus(), s.getStatus().getLabel(),
@@ -119,12 +127,12 @@ public final class CostSheetDto {
 
     public record Item(
             Long id, int lineNo, Long materialId, String materialName, MaterialType materialType, String materialTypeLabel,
-            String unit, BigDecimal quantity, BigDecimal unitPrice, BigDecimal lossRate, BigDecimal amount
+            String unit, BigDecimal ratio, BigDecimal quantity, BigDecimal unitPrice, BigDecimal lossRate, BigDecimal amount
     ) {
         static Item from(CostSheetItem i) {
             return new Item(i.getId(), i.getLineNo(), i.getMaterial().getId(), i.getMaterialName(),
                     i.getMaterialType(), i.getMaterialType().getLabel(), i.getUnit(),
-                    i.getQuantity(), i.getUnitPrice(), i.getLossRate(), i.getAmount());
+                    i.getRatio(), i.getQuantity(), i.getUnitPrice(), i.getLossRate(), i.getAmount());
         }
     }
 

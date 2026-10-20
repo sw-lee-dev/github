@@ -48,24 +48,50 @@ class CostSheetFlowTest {
     @Test
     void 원가가_서버에서_계산된다() throws Exception {
         String writer = login("writer");
-        // 박력분 100kg × 1,000원 × (1 + 10%) = 110,000 / 필름 1,000EA × 20원 = 20,000
+        // 제품 FG-0001(버터쿠키 200g) × 100개 → 총 생산량 20kg
+        // 원자재 투입량 = 20kg × 배합비 × (1 − 손실률), 금액 = 투입량 × 단가
+        //   박력분 50%, 손실 0%  → 10kg × 1,000 = 10,000
+        //   백설탕 50%, 손실 20% →  8kg × 1,000 =  8,000
+        // 포장자재 금액 = 투입량 × 단가 × (1 + 손실률): 필름 1,000EA × 20원 × 1.1 = 22,000
         Map<String, Object> body = sheetBody(List.of(
-                Map.of("materialId", materialId(writer, "M-0001"), "quantity", 100, "unitPrice", 1000, "lossRate", 10),
-                Map.of("materialId", materialId(writer, "P-0001"), "quantity", 1000, "unitPrice", 20)
+                Map.of("materialId", materialId(writer, "M-0001"), "ratio", 50, "unitPrice", 1000, "lossRate", 0),
+                Map.of("materialId", materialId(writer, "M-0002"), "ratio", 50, "unitPrice", 1000, "lossRate", 20),
+                Map.of("materialId", materialId(writer, "P-0001"), "quantity", 1000, "unitPrice", 20, "lossRate", 10)
         ), List.of(userId(writer, "leader")));
 
         JsonNode sheet = json(mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
                 .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(body)))
                 .andExpect(status().isCreated()));
 
-        // 총원가 = 110,000 + 20,000 + 노무비 50,000 + 경비 20,000 = 200,000 / 100개 = 2,000원, 판매가 2,500원 → 마진 20%
-        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("110000");
-        assertThat(sheet.get("packagingCost").decimalValue()).isEqualByComparingTo("20000");
-        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("200000");
-        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("2000");
-        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("20");
+        assertThat(sheet.get("unitWeight").decimalValue()).isEqualByComparingTo("200");
+        assertThat(sheet.get("totalOutput").decimalValue()).isEqualByComparingTo("20");
+        assertThat(sheet.at("/items/0/ratio").decimalValue()).isEqualByComparingTo("50");
+        assertThat(sheet.at("/items/0/quantity").decimalValue()).isEqualByComparingTo("10");
+        assertThat(sheet.at("/items/1/quantity").decimalValue()).isEqualByComparingTo("8");
+        assertThat(sheet.at("/items/2/ratio").isNull()).isTrue();
+        // 총원가 = 18,000 + 22,000 + 노무비 50,000 + 경비 20,000 = 110,000 / 100개 = 1,100원, 판매가 2,500원 → 마진 56%
+        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("18000");
+        assertThat(sheet.get("packagingCost").decimalValue()).isEqualByComparingTo("22000");
+        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("110000");
+        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("1100");
+        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("56");
         assertThat(sheet.get("status").asText()).isEqualTo("DRAFT");
         assertThat(sheet.get("docNo").asText()).startsWith("CS-");
+    }
+
+    @Test
+    void 원자재는_배합비_포장자재는_투입량이_필수() throws Exception {
+        String writer = login("writer");
+        List<Long> line = List.of(userId(writer, "leader"));
+        for (Map<String, Object> item : List.of(
+                Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "quantity", 10),
+                Map.<String, Object>of("materialId", materialId(writer, "P-0001"), "ratio", 10),
+                Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "ratio", 10, "lossRate", 101))) {
+            mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(om.writeValueAsString(sheetBody(List.of(item), line))))
+                    .andExpect(status().isBadRequest());
+        }
     }
 
     @Test
@@ -140,7 +166,7 @@ class CostSheetFlowTest {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"테스트\",\"salePrice\":1000}"))
+                        .content("{\"name\":\"테스트\",\"unitWeight\":100,\"salePrice\":1000}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -175,7 +201,7 @@ class CostSheetFlowTest {
     }
 
     private List<Map<String, Object>> defaultItems(String token) throws Exception {
-        return List.of(Map.of("materialId", materialId(token, "M-0001"), "quantity", 10));
+        return List.of(Map.of("materialId", materialId(token, "M-0001"), "ratio", 100));
     }
 
     private long materialId(String token, String code) throws Exception {
