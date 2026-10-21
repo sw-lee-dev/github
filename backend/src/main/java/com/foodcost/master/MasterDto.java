@@ -2,6 +2,7 @@ package com.foodcost.master;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -47,7 +48,8 @@ public final class MasterDto {
     /** 제품코드는 자동 채번(FG-0001), 규격 문자열과 제품 당 무게는 g × EA 로 서버가 만든다. */
     public record ProductRequest(
             @NotBlank(message = "제품명을 입력하세요.") @Size(max = 100) String name,
-            @NotNull(message = "규격의 무게(g)를 입력하세요.") @DecimalMin(value = "0", inclusive = false, message = "규격의 무게(g)는 0보다 커야 합니다.") BigDecimal specWeight,
+            @NotNull(message = "규격의 무게(g)를 입력하세요.") @DecimalMin(value = "1", message = "규격의 무게(g)는 1 이상이어야 합니다.")
+            @Digits(integer = 9, fraction = 0, message = "규격의 무게(g)는 정수만 입력할 수 있습니다.") BigDecimal specWeight,
             @NotNull(message = "규격의 입수(EA)를 입력하세요.") @Min(value = 1, message = "규격의 입수(EA)는 1 이상이어야 합니다.") Integer specCount,
             @NotNull(message = "판매가를 입력하세요.") @DecimalMin(value = "0", message = "판매가는 0 이상이어야 합니다.") BigDecimal salePrice,
             Boolean active

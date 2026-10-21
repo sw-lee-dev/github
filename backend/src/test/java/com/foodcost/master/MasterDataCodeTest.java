@@ -64,12 +64,26 @@ class MasterDataCodeTest {
 
     @Test
     void 규격은_g_x_EA_로_저장되고_제품_당_무게가_자동_계산된다() {
-        ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", new BigDecimal("12.5"), 16, BigDecimal.valueOf(3000), true));
-        assertThat(p.spec()).isEqualTo("12.5g × 16EA");
-        assertThat(p.specWeight()).isEqualByComparingTo("12.5");
-        assertThat(p.specCount()).isEqualTo(16);
+        ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", BigDecimal.valueOf(25), 8, BigDecimal.valueOf(3000), true));
+        assertThat(p.spec()).isEqualTo("25g × 8EA");
+        assertThat(p.specWeight()).isEqualByComparingTo("25");
+        assertThat(p.specCount()).isEqualTo(8);
         assertThat(p.unitWeight()).isEqualByComparingTo("200");
         assertThat(service.products().get(0).spec()).isEqualTo("20g × 10EA");
+    }
+
+    @Test
+    @WithMockUser(roles = "WRITER")
+    void 규격_무게는_정수만_허용() throws Exception {
+        String body = "{\"name\":\"소수무게\",\"specWeight\":12.5,\"specCount\":2,\"salePrice\":1000}";
+        var res = mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest()).andReturn().getResponse();
+        assertThat(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
+                .contains("규격의 무게(g)는 정수만 입력할 수 있습니다.");
+        mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("12.5", "12")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.spec").value("12g × 2EA"));
     }
 
     @Test

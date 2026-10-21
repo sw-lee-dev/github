@@ -66,8 +66,10 @@ export default function ProductsPage() {
             <div className="col-12 col-md-3">
               <label className="form-label small">규격 (무게 × 입수)</label>
               <div className="input-group input-group-sm">
-                <input type="number" step="0.001" min={0} className="form-control text-end" aria-label="규격 무게(g)" required
-                  value={form.specWeight} onChange={(e) => setForm({ ...form, specWeight: Number(e.target.value) })} />
+                <input type="number" step="1" min={1} inputMode="numeric" className="form-control text-end" aria-label="규격 무게(g)" required
+                  title="정수만 입력할 수 있습니다" value={form.specWeight || ''}
+                  onKeyDown={(e) => { if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); }}
+                  onChange={(e) => setForm({ ...form, specWeight: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
                 <span className="input-group-text">g</span>
                 <input type="number" step="1" min={1} className="form-control text-end" aria-label="규격 입수(EA)" required
                   value={form.specCount} onChange={(e) => setForm({ ...form, specCount: Number(e.target.value) })} />
