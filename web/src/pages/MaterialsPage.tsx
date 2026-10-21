@@ -4,7 +4,7 @@ import type { Material, MaterialType } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { MATERIAL_CODE_PREFIX, formatCode, maxSeq } from '../utils/code';
-import { fmtWon2 } from '../utils/format';
+import { fmtWon } from '../utils/format';
 
 interface NewRow extends MaterialPayload {
   key: number;
@@ -160,7 +160,7 @@ export default function MaterialsPage() {
                 </label>
                 <label className="material-cell">
                   <span className="cell-label">단가(원)</span>
-                  <input type="number" step="any" min={0} className="form-control form-control-sm text-end" placeholder="단가(원)"
+                  <input type="number" step="0.01" min={0} className="form-control form-control-sm text-end" placeholder="단가(원)"
                     aria-label="단가" required value={r.unitPrice}
                     onChange={(e) => updateRow(r.key, { unitPrice: Number(e.target.value) })} />
                 </label>
@@ -205,7 +205,7 @@ export default function MaterialsPage() {
             </div>
             <div className="col-4 col-md-2">
               <label className="form-label small">단가(원)</label>
-              <input type="number" step="any" min={0} className="form-control form-control-sm text-end" value={editing.form.unitPrice} required
+              <input type="number" step="0.01" min={0} className="form-control form-control-sm text-end" value={editing.form.unitPrice} required
                 onChange={(e) => setEditing({ ...editing, form: { ...editing.form, unitPrice: Number(e.target.value) } })} />
             </div>
             <div className="col-4 col-md-2 d-flex align-items-end">
@@ -250,7 +250,7 @@ export default function MaterialsPage() {
                   <td>{m.name}</td>
                   <td><span className={`badge ${m.type === 'RAW' ? 'bar-raw' : 'bar-pack'}`}>{m.typeLabel}</span></td>
                   <td>{m.unit}</td>
-                  <td className="text-end">{fmtWon2(m.unitPrice)}</td>
+                  <td className="text-end">{fmtWon(m.unitPrice)}</td>
                   <td>{m.active ? 'Y' : 'N'}</td>
                   {editable && (
                     <td className="text-end">

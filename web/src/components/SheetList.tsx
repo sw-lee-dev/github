@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { CostSheetSummary } from '../api/types';
-import { fmtDate, fmtPct, fmtWon, fmtWon2 } from '../utils/format';
+import { fmtDate, fmtPct, fmtWon } from '../utils/format';
 import { StatusBadge } from './StatusBadge';
 
 /** 원가계산서 목록. PC는 표, 모바일은 카드로 보여준다. */
@@ -42,7 +42,7 @@ export default function SheetList({ rows, empty }: { rows: CostSheetSummary[]; e
                 </td>
                 <td className="text-nowrap">{r.productName}</td>
                 <td className="text-nowrap">{r.writerName}</td>
-                <td className="text-end text-nowrap">{fmtWon2(r.unitCost)}원</td>
+                <td className="text-end text-nowrap">{fmtWon(r.unitCost)}원</td>
                 <td className="text-end">{fmtPct(r.marginRate)}</td>
                 <td>
                   <StatusBadge status={r.status} label={r.statusLabel} />
@@ -71,7 +71,7 @@ export default function SheetList({ rows, empty }: { rows: CostSheetSummary[]; e
               <div className="d-flex justify-content-between small">
                 <span>총원가 {fmtWon(r.totalCost)}원</span>
                 <span>
-                  개당 <strong>{fmtWon2(r.unitCost)}원</strong> · 마진 {fmtPct(r.marginRate)}
+                  개당 <strong>{fmtWon(r.unitCost)}원</strong> · 마진 {fmtPct(r.marginRate)}
                 </span>
               </div>
             </div>

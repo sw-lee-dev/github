@@ -5,7 +5,7 @@ import type { CostSheetSaveRequest, Material, Product, User } from '../api/types
 import CostSummaryCards from '../components/CostSummaryCards';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { calcCost, packagingAmount, rawAmount, rawQuantity, totalOutputKg } from '../utils/cost';
-import { fmtNum, fmtWon } from '../utils/format';
+import { fmtInt, fmtNum, fmtWeight, fmtWon } from '../utils/format';
 
 /** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비 ÷ (1 − 손실률)로 자동 계산 */
 interface RawRow {
@@ -84,14 +84,14 @@ export default function CostSheetFormPage() {
           materialId: String(i.materialId),
           ratio: i.ratio == null ? '' : String(i.ratio),
           lossRate: String(i.lossRate),
-          unitPrice: String(i.unitPrice),
+          unitPrice: Number(i.unitPrice).toFixed(2),
         })));
         setPackRows(s.items.filter((i) => i.materialType === 'PACKAGING').map((i) => ({
           key: ++rowSeq,
           materialId: String(i.materialId),
           quantity: String(i.quantity),
           lossRate: String(i.lossRate),
-          unitPrice: String(i.unitPrice),
+          unitPrice: Number(i.unitPrice).toFixed(2),
         })));
         setApproverIds(s.steps.map((st) => st.approverId));
       }
@@ -125,7 +125,7 @@ export default function CostSheetFormPage() {
     setPackRows((rows) => rows.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const priceOf = (materialId: string) => {
     const m = materialById.get(Number(materialId));
-    return m ? String(m.unitPrice) : '';
+    return m ? Number(m.unitPrice).toFixed(2) : '';
   };
 
   const selectProduct = (value: string) => {
@@ -288,7 +288,7 @@ export default function CostSheetFormPage() {
               <option value="">선택하세요</option>
               {products.filter((p) => p.active || String(p.id) === productId).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.code} · {p.name} {p.spec ? `(${p.spec})` : ''} · {fmtNum(p.unitWeight)}g
+                  {p.code} · {p.name} {p.spec ? `(${p.spec})` : ''} · {fmtWeight(p.unitWeight)}g
                 </option>
               ))}
             </select>
@@ -322,12 +322,12 @@ export default function CostSheetFormPage() {
             <label className="form-label" htmlFor="totalOutput">총 생산량 (자동 계산)</label>
             <div className="input-group">
               <input id="totalOutput" className="form-control text-end fw-semibold bg-light" readOnly tabIndex={-1}
-                value={product && num(productionQty) > 0 ? fmtNum(totalKg) : ''} placeholder="제품과 배치 생산수량을 입력하세요" />
+                value={product && num(productionQty) > 0 ? fmtInt(totalKg) : ''} placeholder="제품과 배치 생산수량을 입력하세요" />
               <span className="input-group-text">kg</span>
             </div>
             {product && num(productionQty) > 0 && (
               <div className="form-text">
-                제품 당 무게 {fmtNum(product.unitWeight)}g × 배치 생산수량 {num(productionQty).toLocaleString()}개
+                제품 당 무게 {fmtWeight(product.unitWeight)}g × 배치 생산수량 {fmtInt(num(productionQty))}개
               </div>
             )}
           </div>
@@ -380,13 +380,13 @@ export default function CostSheetFormPage() {
                     <span className="cell-label">투입량</span>
                     <div className="input-group input-group-sm">
                       <input className="form-control text-end bg-light" readOnly tabIndex={-1} aria-label="투입량(자동)"
-                        value={r.materialId ? fmtNum(rawCalc[idx].quantity) : ''} />
+                        value={r.materialId ? fmtWeight(rawCalc[idx].quantity) : ''} />
                       <span className="input-group-text unit-label">{rawCalc[idx].unit}</span>
                     </div>
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">단가(원)</span>
-                    <input type="number" step="any" min={0} className="form-control form-control-sm text-end" aria-label="단가"
+                    <input type="number" step="0.01" min={0} className="form-control form-control-sm text-end" aria-label="단가"
                       value={r.unitPrice} onChange={(e) => updateRaw(r.key, { unitPrice: e.target.value })} />
                   </label>
                   <div className="bom-cell text-end fw-medium small">
@@ -448,7 +448,7 @@ export default function CostSheetFormPage() {
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">단가(원)</span>
-                    <input type="number" step="any" min={0} className="form-control form-control-sm text-end" aria-label="단가"
+                    <input type="number" step="0.01" min={0} className="form-control form-control-sm text-end" aria-label="단가"
                       value={r.unitPrice} onChange={(e) => updatePack(r.key, { unitPrice: e.target.value })} />
                   </label>
                   <div className="bom-cell text-end fw-medium small">

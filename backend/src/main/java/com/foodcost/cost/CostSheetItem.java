@@ -68,8 +68,8 @@ public class CostSheetItem {
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal lossRate;
 
-    /** 금액(원 단위 반올림) */
-    @Column(nullable = false, precision = 18, scale = 0)
+    /** 금액(원, 소수 둘째자리 반올림) */
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
 
     /** 원자재 품목: 배합비로 투입량을 계산한다. */
@@ -78,7 +78,7 @@ public class CostSheetItem {
         CostSheetItem item = new CostSheetItem(costSheet, lineNo, material, unitPrice, lossRate);
         item.ratio = ratio;
         item.quantity = rawQuantity(totalOutputKg, ratio, lossRate, material.getUnit());
-        item.amount = item.quantity.multiply(unitPrice).setScale(0, RoundingMode.HALF_UP);
+        item.amount = item.quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
         return item;
     }
 
@@ -88,7 +88,7 @@ public class CostSheetItem {
         CostSheetItem item = new CostSheetItem(costSheet, lineNo, material, unitPrice, lossRate);
         item.quantity = quantity;
         BigDecimal lossFactor = BigDecimal.ONE.add(lossRate.divide(HUNDRED, 6, RoundingMode.HALF_UP));
-        item.amount = quantity.multiply(unitPrice).multiply(lossFactor).setScale(0, RoundingMode.HALF_UP);
+        item.amount = quantity.multiply(unitPrice).multiply(lossFactor).setScale(2, RoundingMode.HALF_UP);
         return item;
     }
 

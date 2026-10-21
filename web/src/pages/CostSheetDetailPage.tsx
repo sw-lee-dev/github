@@ -6,7 +6,7 @@ import ApprovalLine from '../components/ApprovalLine';
 import CostSummaryCards from '../components/CostSummaryCards';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { StatusBadge } from '../components/StatusBadge';
-import { fmtDateTime, fmtNum, fmtWon } from '../utils/format';
+import { fmtDateTime, fmtInt, fmtNum, fmtWeight, fmtWon } from '../utils/format';
 
 type Decision = 'approve' | 'reject' | null;
 
@@ -151,11 +151,11 @@ export default function CostSheetDetailPage() {
             <dt className="col-4 col-md-2 text-muted fw-normal">제품</dt>
             <dd className="col-8 col-md-4">{sheet.productName} <span className="text-muted">({sheet.productCode}{sheet.productSpec ? `, ${sheet.productSpec}` : ''})</span></dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">배치 생산수량</dt>
-            <dd className="col-8 col-md-4">{sheet.productionQty.toLocaleString()}개</dd>
+            <dd className="col-8 col-md-4">{fmtInt(sheet.productionQty)}개</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">제품 당 무게</dt>
-            <dd className="col-8 col-md-4">{fmtNum(sheet.unitWeight)}g</dd>
+            <dd className="col-8 col-md-4">{fmtWeight(sheet.unitWeight)}g</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">총 생산량</dt>
-            <dd className="col-8 col-md-4 fw-semibold">{fmtNum(sheet.totalOutput)}kg</dd>
+            <dd className="col-8 col-md-4 fw-semibold">{fmtInt(sheet.totalOutput)}kg</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">상신일시</dt>
             <dd className="col-8 col-md-4">{fmtDateTime(sheet.submittedAt)}</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">완료일시</dt>
@@ -233,7 +233,7 @@ function ItemTable({ title, items, total, raw = false }: { title: string; items:
                 <td>{i.materialName}</td>
                 {raw && <td className="text-end">{fmtNum(i.ratio)}%</td>}
                 <td className="text-end">{fmtNum(i.lossRate)}%</td>
-                <td className="text-end text-nowrap">{fmtNum(i.quantity)} {i.unit}</td>
+                <td className="text-end text-nowrap">{raw ? fmtWeight(i.quantity) : fmtNum(i.quantity)} {i.unit}</td>
                 <td className="text-end text-nowrap">{fmtWon(i.unitPrice)}</td>
                 <td className="text-end text-nowrap fw-medium">{fmtWon(i.amount)}</td>
               </tr>

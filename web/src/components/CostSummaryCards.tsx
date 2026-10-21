@@ -1,4 +1,4 @@
-import { fmtPct, fmtWon, fmtWon2 } from '../utils/format';
+import { fmtInt, fmtPct, fmtWon } from '../utils/format';
 
 interface Props {
   materialCost: number;
@@ -15,10 +15,10 @@ interface Props {
 /** 원가 구성 요약: 총원가/개당원가/마진율 + 항목별 비중 막대 */
 export default function CostSummaryCards(p: Props) {
   const parts = [
-    { label: '원재료비', value: p.materialCost, cls: 'bar-raw' },
-    { label: '포장재비', value: p.packagingCost, cls: 'bar-pack' },
-    { label: '노무비', value: p.laborCost, cls: 'bar-labor' },
-    { label: '제조경비', value: p.overheadCost, cls: 'bar-overhead' },
+    { label: '원재료비', value: p.materialCost, cls: 'bar-raw', fmt: fmtWon },
+    { label: '포장재비', value: p.packagingCost, cls: 'bar-pack', fmt: fmtWon },
+    { label: '노무비', value: p.laborCost, cls: 'bar-labor', fmt: fmtInt },
+    { label: '제조경비', value: p.overheadCost, cls: 'bar-overhead', fmt: fmtInt },
   ];
   const total = p.totalCost || 1;
   const marginCls = p.marginRate == null ? '' : p.marginRate < 20 ? 'text-danger' : 'text-success';
@@ -28,16 +28,16 @@ export default function CostSummaryCards(p: Props) {
       <div className="card-body">
         <div className="row g-3 text-center text-md-start">
           <div className="col-6 col-md-3">
-            <div className="kpi-label">총원가 (배치 {p.productionQty.toLocaleString()}개)</div>
+            <div className="kpi-label">총원가 (배치 {fmtInt(p.productionQty)}개)</div>
             <div className="kpi-value">{fmtWon(p.totalCost)}<small>원</small></div>
           </div>
           <div className="col-6 col-md-3">
             <div className="kpi-label">개당 원가</div>
-            <div className="kpi-value">{fmtWon2(p.unitCost)}<small>원</small></div>
+            <div className="kpi-value">{fmtWon(p.unitCost)}<small>원</small></div>
           </div>
           <div className="col-6 col-md-3">
             <div className="kpi-label">판매가</div>
-            <div className="kpi-value">{fmtWon(p.salePrice)}<small>원</small></div>
+            <div className="kpi-value">{fmtInt(p.salePrice)}<small>원</small></div>
           </div>
           <div className="col-6 col-md-3">
             <div className="kpi-label">마진율</div>
@@ -54,7 +54,7 @@ export default function CostSummaryCards(p: Props) {
           {parts.map((x) => (
             <span key={x.label}>
               <span className={`legend-dot ${x.cls}`} />
-              {x.label} <strong>{fmtWon(x.value)}</strong>원
+              {x.label} <strong>{x.fmt(x.value)}</strong>원
               <span className="text-muted"> ({((x.value / total) * 100).toFixed(1)}%)</span>
             </span>
           ))}

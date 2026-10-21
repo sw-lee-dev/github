@@ -4,7 +4,7 @@ import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
-import { fmtNum, fmtWon } from '../utils/format';
+import { fmtInt, fmtWeight } from '../utils/format';
 
 const EMPTY: ProductPayload = { name: '', spec: '', unitWeight: 0, salePrice: 0, active: true };
 
@@ -69,7 +69,7 @@ export default function ProductsPage() {
             </div>
             <div className="col-6 col-md-2">
               <label className="form-label small">제품 당 무게(g)</label>
-              <input type="number" step="any" min={0} className="form-control form-control-sm text-end" value={form.unitWeight} required
+              <input type="number" step="0.001" min={0} className="form-control form-control-sm text-end" value={form.unitWeight} required
                 onChange={(e) => setForm({ ...form, unitWeight: Number(e.target.value) })} />
             </div>
             <div className="col-6 col-md-2">
@@ -107,8 +107,8 @@ export default function ProductsPage() {
                   <td>{p.code}</td>
                   <td>{p.name}</td>
                   <td>{p.spec ?? '-'}</td>
-                  <td className="text-end">{fmtNum(p.unitWeight)}</td>
-                  <td className="text-end">{fmtWon(p.salePrice)}</td>
+                  <td className="text-end">{fmtWeight(p.unitWeight)}</td>
+                  <td className="text-end">{fmtInt(p.salePrice)}</td>
                   <td>{p.active ? 'Y' : 'N'}</td>
                   {editable && (
                     <td className="text-end">

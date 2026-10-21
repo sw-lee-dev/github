@@ -18,14 +18,15 @@ export function rawQuantity(totalKg: number, ratio: number, lossRate: number, un
   return round(unit.toLowerCase() === 'g' ? kg * 1000 : kg, 4);
 }
 
-export const rawAmount = (quantity: number, unitPrice: number) => Math.round(quantity * (unitPrice || 0));
+/** 금액은 원 단위 소수 둘째자리로 반올림 (서버 CostSheetItem 과 동일) */
+export const rawAmount = (quantity: number, unitPrice: number) => round(quantity * (unitPrice || 0), 2);
 
 export const packagingAmount = (quantity: number, unitPrice: number, lossRate: number) =>
-  Math.round((quantity || 0) * (unitPrice || 0) * (1 + (lossRate || 0) / 100));
+  round((quantity || 0) * (unitPrice || 0) * (1 + (lossRate || 0) / 100), 2);
 
 export function calcCost(materialCost: number, packagingCost: number, laborCost: number, overheadCost: number,
   productionQty: number, salePrice: number) {
-  const totalCost = materialCost + packagingCost + (laborCost || 0) + (overheadCost || 0);
+  const totalCost = round(materialCost + packagingCost + (laborCost || 0) + (overheadCost || 0), 2);
   const unitCost = productionQty > 0 ? round(totalCost / productionQty, 2) : 0;
   const marginRate = salePrice > 0 ? round(((salePrice - unitCost) / salePrice) * 100, 2) : null;
   return { totalCost, unitCost, marginRate };

@@ -1,12 +1,25 @@
-const won = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 });
+/*
+ * 숫자 표시 규칙
+ *  - 원 단위(단가·금액·원가)       : 소수 둘째자리 고정   fmtWon    1,350.00
+ *  - 무게(투입량·제품 당 무게)     : 소수 셋째자리 고정   fmtWeight 244.898
+ *  - 판매가·노무비·제조경비·총 생산량·개수 : 정수        fmtInt    4,500
+ *  - 그 밖의 수(배합비·손실률·EA 수량)   : 있는 그대로     fmtNum
+ */
+const fixed = (digits: number) =>
+  new Intl.NumberFormat('ko-KR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const won = fixed(2);
+const weight = fixed(3);
+const int = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 4 });
 
-/** 1234567 → "1,234,567" */
+/** 원 단위: 1350 → "1,350.00" */
 export const fmtWon = (v: number | null | undefined) => (v == null ? '-' : won.format(v));
 
-/** 개당원가 등 소수 둘째자리까지 */
-export const fmtWon2 = (v: number | null | undefined) =>
-  v == null ? '-' : new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 2 }).format(v);
+/** 무게: 244.89796 → "244.898" */
+export const fmtWeight = (v: number | null | undefined) => (v == null ? '-' : weight.format(v));
+
+/** 정수: 4500 → "4,500" */
+export const fmtInt = (v: number | null | undefined) => (v == null ? '-' : int.format(v));
 
 export const fmtNum = (v: number | null | undefined) => (v == null ? '-' : decimal.format(v));
 

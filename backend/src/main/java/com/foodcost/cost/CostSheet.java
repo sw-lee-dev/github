@@ -82,13 +82,13 @@ public class CostSheet extends BaseTimeEntity {
     @Column(length = 2000)
     private String remark;
 
-    @Column(nullable = false, precision = 18, scale = 0)
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal materialCost = BigDecimal.ZERO;
 
-    @Column(nullable = false, precision = 18, scale = 0)
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal packagingCost = BigDecimal.ZERO;
 
-    @Column(nullable = false, precision = 18, scale = 0)
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal totalCost = BigDecimal.ZERO;
 
     @Column(nullable = false, precision = 15, scale = 2)
