@@ -83,7 +83,7 @@ export default function CostSheetFormPage() {
         setRawRows(s.items.filter((i) => i.materialType === 'RAW').map((i) => ({
           key: ++rowSeq,
           materialId: String(i.materialId),
-          ratio: i.ratio == null ? '' : String(i.ratio),
+          ratio: i.ratio == null ? '' : Number(i.ratio).toFixed(2),
           unitPrice: Number(i.unitPrice).toFixed(2),
         })));
         setPackRows(s.items.filter((i) => i.materialType === 'PACKAGING').map((i) => ({
@@ -389,8 +389,9 @@ export default function CostSheetFormPage() {
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">배합비(%)</span>
-                    <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비" required={!!r.materialId}
-                      value={r.ratio} onChange={(e) => updateRaw(r.key, { ratio: e.target.value })} />
+                    <input type="number" step="0.01" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비" required={!!r.materialId}
+                      value={r.ratio} onChange={(e) => updateRaw(r.key, { ratio: e.target.value })}
+                      onBlur={(e) => e.target.value.trim() !== '' && updateRaw(r.key, { ratio: Number(e.target.value).toFixed(2) })} />
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">투입량</span>
@@ -415,21 +416,21 @@ export default function CostSheetFormPage() {
                 </div>
               ))}
             </div>
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2 small">
-              <span>
-                배합비 합계{' '}
-                <span className={`badge ${ratioOk ? 'text-bg-success' : 'text-bg-warning'}`} data-testid="ratio-sum">{fmtNum(ratioSum)}%</span>
-                {!ratioOk && <span className="text-warning-emphasis ms-2">합계가 100%가 되도록 입력하세요.</span>}
-              </span>
-              <span className="text-end">
-                원자재 합계 <strong data-testid="raw-subtotal">{fmtWon(rawSubtotal)}</strong>원
-                <span className="mx-2 text-muted">→</span>
-                원재료비 <strong data-testid="raw-cost">{fmtWon(materialCost)}</strong>원
-                <span className="text-muted"> (÷ (1 − {fmtNum(num(rawLossRate))}%))</span>
-              </span>
-            </div>
-            <div className="form-text">
-              투입량 = 총 생산량 × 배합비%, 금액 = 투입량 × 단가, 원재료비 = 원자재 합계 ÷ (1 − 원재료 손실률%)
+            {/* 합계 행: 열 위치를 위 입력 행과 맞춘다. 금액 합계는 원재료 손실률을 반영한 최종 원자재비용 */}
+            <div className="bom-row bom-raw bom-total" data-testid="raw-total-row">
+              <div className="bom-cell bom-material fw-semibold">합계</div>
+              <div className={`bom-cell text-end fw-semibold ${ratioOk ? '' : 'text-warning-emphasis'}`}
+                title={ratioOk ? undefined : '배합비 합계가 100%가 되도록 입력하세요'}>
+                <span className="cell-label">배합비(%)</span>
+                <span data-testid="ratio-sum">{ratioSum.toFixed(2)}</span>
+              </div>
+              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell text-end fw-semibold" title={`원자재 금액 합계 ${fmtWon(rawSubtotal)}원 ÷ (1 − 원재료 손실률 ${fmtNum(num(rawLossRate))}%)`}>
+                <span className="cell-label">금액(원) · 손실률 반영</span>
+                <span data-testid="raw-cost">{fmtWon(materialCost)}</span>
+              </div>
+              <div className="d-none d-md-block" />
             </div>
           </section>
 

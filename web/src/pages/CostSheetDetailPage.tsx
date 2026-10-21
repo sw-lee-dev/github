@@ -247,7 +247,7 @@ function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate }: 
             {items.map((i) => (
               <tr key={i.id}>
                 <td>{i.materialName}</td>
-                {raw ? <td className="text-end">{fmtNum(i.ratio)}%</td> : <td className="text-end">{fmtNum(i.lossRate)}%</td>}
+                {raw ? <td className="text-end">{(i.ratio ?? 0).toFixed(2)}%</td> : <td className="text-end">{fmtNum(i.lossRate)}%</td>}
                 <td className="text-end text-nowrap">{raw ? fmtWeight(i.quantity) : fmtNum(i.quantity)} {i.unit}</td>
                 <td className="text-end text-nowrap">{fmtWon(i.unitPrice)}</td>
                 <td className="text-end text-nowrap fw-medium">{fmtWon(i.amount)}</td>
@@ -256,21 +256,18 @@ function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate }: 
           </tbody>
           {raw && (
             <tfoot className="table-light">
-              <tr>
-                <td>배합비 합계</td>
-                <td className="text-end fw-semibold">{fmtNum(Math.round(ratioSum * 1000) / 1000)}%</td>
-                <td colSpan={2} className="text-end">원자재 합계</td>
-                <td className="text-end fw-semibold">{fmtWon(subtotal)}</td>
+              <tr className="fw-semibold">
+                <td>합계</td>
+                <td className="text-end">{ratioSum.toFixed(2)}%</td>
+                <td colSpan={2} />
+                <td className="text-end" title={`원자재 금액 합계 ${fmtWon(subtotal)}원 ÷ (1 − 원재료 손실률 ${fmtNum(rawLossRate)}%)`}>
+                  {fmtWon(total)}
+                </td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
-      {raw && (
-        <div className="card-footer bg-white small text-muted">
-          투입량 = 총 생산량 × 배합비%, 원재료비 = 원자재 합계 ÷ (1 − 원재료 손실률 {fmtNum(rawLossRate)}%)
-        </div>
-      )}
     </div>
   );
 }
