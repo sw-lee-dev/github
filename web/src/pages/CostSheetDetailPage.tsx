@@ -18,6 +18,8 @@ export default function CostSheetDetailPage() {
   const [busy, setBusy] = useState(false);
   const [decision, setDecision] = useState<Decision>(null);
   const [comment, setComment] = useState('');
+  /** 최종 결재자가 입력하는 승인 판매가 (승인 상자를 열 때 작성자가 입력한 개당 판매가로 채움) */
+  const [approvedPrice, setApprovedPrice] = useState('');
 
   useEffect(() => {
     api.costSheet(Number(id)).then(setSheet).catch((e) => setError(errMsg(e)));
@@ -48,12 +50,22 @@ export default function CostSheetDetailPage() {
       navigate('/', { replace: true });
     }, '이 원가계산서를 삭제할까요?');
 
+  const openDecision = (d: Exclude<Decision, null>) => {
+    setDecision(d);
+    setApprovedPrice(String(Math.round(sheet.salePrice)));
+  };
+
   const decide = () => {
     if (decision === 'reject' && !comment.trim()) {
       setError('반려 사유를 입력하세요.');
       return;
     }
-    run(() => (decision === 'approve' ? api.approve(sheet.id, comment) : api.reject(sheet.id, comment)));
+    if (decision === 'approve' && p.canSetSalePrice && (approvedPrice.trim() === '' || Number(approvedPrice) < 0)) {
+      setError('승인 판매가를 입력하세요.');
+      return;
+    }
+    const salePrice = p.canSetSalePrice ? Number(approvedPrice) : null;
+    run(() => (decision === 'approve' ? api.approve(sheet.id, comment, salePrice) : api.reject(sheet.id, comment)));
   };
 
   return (
@@ -99,10 +111,10 @@ export default function CostSheetDetailPage() {
           )}
           {p.canApprove && (
             <div className="d-none d-md-flex gap-2">
-              <button className="btn btn-success" onClick={() => setDecision('approve')}>
+              <button className="btn btn-success" onClick={() => openDecision('approve')}>
                 <i className="bi bi-check-lg me-1" />승인
               </button>
-              <button className="btn btn-danger" onClick={() => setDecision('reject')}>
+              <button className="btn btn-danger" onClick={() => openDecision('reject')}>
                 <i className="bi bi-x-lg me-1" />반려
               </button>
             </div>
@@ -115,6 +127,20 @@ export default function CostSheetDetailPage() {
       {decision && (
         <div className={`card mb-3 border-${decision === 'approve' ? 'success' : 'danger'}`}>
           <div className="card-body">
+            {decision === 'approve' && p.canSetSalePrice && (
+              <div className="mb-3">
+                <label htmlFor="approvedPrice" className="form-label fw-semibold">승인 판매가 (원, 개당) *</label>
+                <div className="input-group" style={{ maxWidth: 320 }}>
+                  <input id="approvedPrice" type="number" min={0} step={1} className="form-control text-end" value={approvedPrice}
+                    onChange={(e) => setApprovedPrice(e.target.value)} />
+                  <span className="input-group-text">원</span>
+                </div>
+                <div className="form-text">
+                  최종 승인 시 확정되며, 제품 {sheet.productCode}의 판매가가 이 금액으로 변경됩니다.
+                  (작성 시 판매가 {fmtInt(sheet.salePrice)}원, 개당 원가 {fmtWon(sheet.unitCost)}원)
+                </div>
+              </div>
+            )}
             <label htmlFor="comment" className="form-label fw-semibold">
               {decision === 'approve' ? '승인 의견 (선택)' : '반려 사유 (필수)'}
             </label>
@@ -160,6 +186,12 @@ export default function CostSheetDetailPage() {
             <dd className="col-8 col-md-4">{fmtNum(sheet.rawLossRate)}%</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">총 투입량</dt>
             <dd className="col-8 col-md-4 fw-semibold">{fmtWeight(sheet.totalInput)}kg</dd>
+            <dt className="col-4 col-md-2 text-muted fw-normal">개당 원가</dt>
+            <dd className="col-8 col-md-4">{fmtWon(sheet.unitCost)}원</dd>
+            <dt className="col-4 col-md-2 text-muted fw-normal">승인 판매가</dt>
+            <dd className="col-8 col-md-4 fw-semibold" data-testid="approved-sale-price">
+              {sheet.status === 'APPROVED' && sheet.approvedSalePrice != null ? `${fmtInt(sheet.approvedSalePrice)}원` : '-'}
+            </dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">상신일시</dt>
             <dd className="col-8 col-md-4">{fmtDateTime(sheet.submittedAt)}</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">완료일시</dt>
@@ -198,10 +230,10 @@ export default function CostSheetDetailPage() {
 
       {p.canApprove && !decision && (
         <div className="action-bar d-md-none">
-          <button className="btn btn-danger flex-fill" onClick={() => setDecision('reject')}>
+          <button className="btn btn-danger flex-fill" onClick={() => openDecision('reject')}>
             <i className="bi bi-x-lg me-1" />반려
           </button>
-          <button className="btn btn-success flex-fill" onClick={() => { setDecision('approve'); window.scrollTo({ top: 0 }); }}>
+          <button className="btn btn-success flex-fill" onClick={() => { openDecision('approve'); window.scrollTo({ top: 0 }); }}>
             <i className="bi bi-check-lg me-1" />승인
           </button>
         </div>

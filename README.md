@@ -145,6 +145,9 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 
 - 작성자 본인은 결재선에 넣을 수 없고, 같은 사람을 두 번 넣을 수 없습니다.
 - 모든 상신/승인/반려/회수는 결재 이력(`approval_history`)에 남습니다.
+- **승인 판매가**: 최종 결재자가 승인할 때 개당 승인 판매가를 입력합니다(기본값은 작성 시 판매가).
+  승인완료되면 원가계산서 목록·결재함의 개당원가 옆과 상세 화면에 표시되고(그 외 상태는 `-`),
+  같은 제품코드의 제품 판매가가 승인 판매가로 변경됩니다. 중간 결재자에게는 입력칸이 없습니다.
 
 ## REST API
 
@@ -163,7 +166,7 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 | POST | `/api/cost-sheets` | 작성 |
 | POST | `/api/cost-sheets/{id}/submit` | 상신 |
 | POST | `/api/cost-sheets/{id}/withdraw` | 회수 |
-| POST | `/api/cost-sheets/{id}/approve` | 승인 `{ comment }` |
+| POST | `/api/cost-sheets/{id}/approve` | 승인 `{ comment, salePrice }` (salePrice 는 최종 결재자만) |
 | POST | `/api/cost-sheets/{id}/reject` | 반려 `{ comment }` (필수) |
 | GET | `/api/approvals?box=pending\|done` | 결재함 |
 | GET | `/api/approvals/count` | 결재 대기 건수 |
@@ -174,7 +177,7 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 ## 테스트
 
 ```bash
-cd backend && ./mvnw test       # 원가 계산, 결재 흐름, 권한, 코드 채번, 제품 규격 (23건)
+cd backend && ./mvnw test       # 원가 계산, 결재 흐름, 권한, 코드 채번, 제품 규격, 승인 판매가 (26건)
 cd web && npm run build      # 타입체크 + 빌드
 ```
 

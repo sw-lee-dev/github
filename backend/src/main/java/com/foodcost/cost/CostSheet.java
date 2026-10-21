@@ -70,6 +70,10 @@ public class CostSheet extends BaseTimeEntity {
     @Column(nullable = false, precision = 15, scale = 3)
     private BigDecimal totalOutput;
 
+    /** 승인 판매가(원, 개당) - 최종 결재자가 승인할 때 확정. 승인완료 전에는 null */
+    @Column(precision = 15, scale = 2)
+    private BigDecimal approvedSalePrice;
+
     /** 원재료 손실률(%) - 0 이상 100 미만 */
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal rawLossRate = BigDecimal.ZERO;
@@ -247,10 +251,16 @@ public class CostSheet extends BaseTimeEntity {
         status = CostStatus.IN_APPROVAL;
         submittedAt = LocalDateTime.now();
         completedAt = null;
+        approvedSalePrice = null;
         histories.add(new ApprovalHistory(this, actor, ApprovalAction.SUBMITTED, null));
     }
 
-    public void approve(User actor, String comment) {
+    /**
+     * 승인. 마지막 결재자의 승인이면 문서가 승인완료되고, 승인 판매가를 확정해 제품 기준 판매가에 반영한다.
+     *
+     * @param salePrice 최종 결재자가 입력한 승인 판매가. 비우면 작성자가 입력한 개당 판매가. 중간 결재자는 무시
+     */
+    public void approve(User actor, String comment, BigDecimal salePrice) {
         ApprovalStep step = currentStepOf(actor);
         step.approve(comment);
         histories.add(new ApprovalHistory(this, actor, ApprovalAction.APPROVED, comment));
@@ -263,7 +273,15 @@ public class CostSheet extends BaseTimeEntity {
         } else {
             status = CostStatus.APPROVED;
             completedAt = LocalDateTime.now();
+            approvedSalePrice = salePrice != null ? salePrice : this.salePrice;
+            product.changeSalePrice(approvedSalePrice);
         }
+    }
+
+    /** 지금 결재 차례가 이 사용자이고, 그 단계가 마지막 단계인지 (승인 판매가 입력 대상) */
+    public boolean isFinalPendingApprover(Long userId) {
+        return isPendingApprover(userId)
+                && currentStep().map(s -> s.getSeq() == steps.get(steps.size() - 1).getSeq()).orElse(false);
     }
 
     public void reject(User actor, String comment) {

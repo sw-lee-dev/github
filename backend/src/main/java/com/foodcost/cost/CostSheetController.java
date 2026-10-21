@@ -61,8 +61,9 @@ public class CostSheetController {
 
     @PostMapping("/{id}/approve")
     public Detail approve(@AuthenticationPrincipal AuthUser user, @PathVariable Long id,
-                          @Valid @RequestBody(required = false) CommentRequest request) {
-        return costSheetService.approve(user, id, request == null ? null : request.comment());
+                          @Valid @RequestBody(required = false) ApproveRequest request) {
+        return costSheetService.approve(user, id, request == null ? null : request.comment(),
+                request == null ? null : request.salePrice());
     }
 
     @PostMapping("/{id}/reject")

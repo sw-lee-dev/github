@@ -203,6 +203,46 @@ class CostSheetFlowTest {
     }
 
     @Test
+    void 최종_승인시_승인_판매가가_확정되고_제품_판매가에_반영된다() throws Exception {
+        String writer = login("writer");
+        String leader = login("leader");
+        String plant = login("plant");
+        long id = createSheet(writer, List.of(userId(writer, "leader"), userId(writer, "plant")));
+        act(writer, id, "submit", null);
+
+        // 결재중에는 승인 판매가 없음, 중간 결재자는 판매가 입력 대상이 아님
+        mvc.perform(get("/api/cost-sheets/" + id).header("Authorization", leader))
+                .andExpect(jsonPath("$.approvedSalePrice").isEmpty())
+                .andExpect(jsonPath("$.permissions.canSetSalePrice").value(false));
+        // 중간 결재자가 보낸 판매가는 무시
+        approve(leader, id, 9999).andExpect(jsonPath("$.approvedSalePrice").isEmpty());
+
+        mvc.perform(get("/api/cost-sheets/" + id).header("Authorization", plant))
+                .andExpect(jsonPath("$.permissions.canSetSalePrice").value(true));
+        approve(plant, id, 2700)
+                .andExpect(jsonPath("$.status").value("APPROVED"))
+                .andExpect(jsonPath("$.approvedSalePrice").value(2700));
+
+        // 목록과 제품(FG-0001) 판매가에 반영
+        JsonNode list = json(mvc.perform(get("/api/cost-sheets?scope=mine").header("Authorization", writer)));
+        for (JsonNode n : list) {
+            if (n.get("id").asLong() == id) assertThat(n.get("approvedSalePrice").decimalValue()).isEqualByComparingTo("2700");
+        }
+        JsonNode products = json(mvc.perform(get("/api/products").header("Authorization", writer)));
+        assertThat(products.get(0).get("code").asText()).isEqualTo("FG-0001");
+        assertThat(products.get(0).get("salePrice").decimalValue()).isEqualByComparingTo("2700");
+    }
+
+    @Test
+    void 판매가를_비우고_최종승인하면_작성시_판매가로_확정된다() throws Exception {
+        String writer = login("writer");
+        String leader = login("leader");
+        long id = createSheet(writer, List.of(userId(writer, "leader")));
+        act(writer, id, "submit", null);
+        act(leader, id, "approve", "확인").andExpect(jsonPath("$.approvedSalePrice").value(2500));
+    }
+
+    @Test
     void 반려하면_수정후_재상신할_수_있다() throws Exception {
         String writer = login("writer");
         String leader = login("leader");
@@ -260,6 +300,12 @@ class CostSheetFlowTest {
                         .content(om.writeValueAsString(sheetBody(defaultItems(token), approverIds))))
                 .andExpect(status().isCreated()));
         return res.get("id").asLong();
+    }
+
+    private ResultActions approve(String token, long id, int salePrice) throws Exception {
+        return mvc.perform(post("/api/cost-sheets/" + id + "/approve").header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(om.writeValueAsString(Map.of("comment", "확인", "salePrice", salePrice))));
     }
 
     private ResultActions act(String token, long id, String action, String comment) throws Exception {

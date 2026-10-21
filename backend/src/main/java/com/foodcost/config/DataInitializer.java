@@ -123,9 +123,9 @@ public class DataInitializer implements ApplicationRunner {
                 "버터쿠키 2026년 3분기 표준원가", p.get("FG-0001"), 2_000, new BigDecimal("2"), bd(4_500), bd(880_000), bd(430_000),
                 "3분기 표준원가 확정 건", butterCookieItems(m, 12_300), line));
         costSheetService.submit(writer, approved.id());
-        costSheetService.approve(auth(u.get("leader")), approved.id(), "확인했습니다.");
-        costSheetService.approve(auth(u.get("plant")), approved.id(), null);
-        costSheetService.approve(auth(u.get("exec")), approved.id(), "승인합니다.");
+        costSheetService.approve(auth(u.get("leader")), approved.id(), "확인했습니다.", null);
+        costSheetService.approve(auth(u.get("plant")), approved.id(), null, null);
+        costSheetService.approve(auth(u.get("exec")), approved.id(), "승인합니다.", null);
 
         // 2) 팀장 승인 후 공장장 결재 대기
         var inProgress = costSheetService.create(writer, new SaveRequest(
@@ -133,7 +133,7 @@ public class DataInitializer implements ApplicationRunner {
                 bd(900_000), bd(450_000),
                 "무염버터 매입단가 12,300원 → 12,800원 인상분 반영", butterCookieItems(m, 12_800), line));
         costSheetService.submit(writer, inProgress.id());
-        costSheetService.approve(auth(u.get("leader")), inProgress.id(), "단가 인상 근거 확인했습니다.");
+        costSheetService.approve(auth(u.get("leader")), inProgress.id(), "단가 인상 근거 확인했습니다.", null);
 
         // 3) 팀장 결재 대기
         var waiting = costSheetService.create(writer, new SaveRequest(

@@ -56,6 +56,8 @@ export interface CostSheetSummary {
   statusLabel: string;
   totalCost: number;
   unitCost: number;
+  /** 승인 판매가 - 승인완료 문서만 값이 있음 */
+  approvedSalePrice: number | null;
   salePrice: number;
   marginRate: number | null;
   currentApproverName: string | null;
@@ -106,6 +108,8 @@ export interface Permissions {
   canSubmit: boolean;
   canWithdraw: boolean;
   canApprove: boolean;
+  /** 최종 결재자 차례 - 승인 시 승인 판매가 입력 */
+  canSetSalePrice: boolean;
 }
 
 export interface CostSheetDetail {
@@ -134,6 +138,8 @@ export interface CostSheetDetail {
   overheadCost: number;
   totalCost: number;
   unitCost: number;
+  /** 승인 판매가 - 승인완료 문서만 값이 있음 */
+  approvedSalePrice: number | null;
   marginRate: number | null;
   remark: string | null;
   status: CostStatus;

@@ -186,9 +186,9 @@ public class CostSheetService {
     }
 
     @Transactional
-    public Detail approve(AuthUser user, Long id, String comment) {
+    public Detail approve(AuthUser user, Long id, String comment, BigDecimal salePrice) {
         CostSheet sheet = find(id);
-        sheet.approve(findUser(user.id()), blankToNull(comment));
+        sheet.approve(findUser(user.id()), blankToNull(comment), salePrice);
         return Detail.of(sheet, user.id());
     }
 

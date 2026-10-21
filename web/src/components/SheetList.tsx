@@ -1,6 +1,10 @@
 import { Link } from 'react-router-dom';
 import type { CostSheetSummary } from '../api/types';
-import { fmtDate, fmtPct, fmtWon } from '../utils/format';
+import { fmtDate, fmtInt, fmtPct, fmtWon } from '../utils/format';
+
+/** 승인 판매가: 승인완료 문서만 표시, 그 외 '-' */
+const approvedPrice = (r: CostSheetSummary) =>
+  r.status === 'APPROVED' && r.approvedSalePrice != null ? `${fmtInt(r.approvedSalePrice)}원` : '-';
 import { StatusBadge } from './StatusBadge';
 
 /** 원가계산서 목록. PC는 표, 모바일은 카드로 보여준다. */
@@ -25,6 +29,7 @@ export default function SheetList({ rows, empty }: { rows: CostSheetSummary[]; e
               <th>제품</th>
               <th>작성자</th>
               <th className="text-end">개당원가</th>
+              <th className="text-end">승인 판매가</th>
               <th className="text-end">마진율</th>
               <th>상태</th>
               <th>현재 결재자</th>
@@ -43,6 +48,7 @@ export default function SheetList({ rows, empty }: { rows: CostSheetSummary[]; e
                 <td className="text-nowrap">{r.productName}</td>
                 <td className="text-nowrap">{r.writerName}</td>
                 <td className="text-end text-nowrap">{fmtWon(r.unitCost)}원</td>
+                <td className="text-end text-nowrap">{approvedPrice(r)}</td>
                 <td className="text-end">{fmtPct(r.marginRate)}</td>
                 <td>
                   <StatusBadge status={r.status} label={r.statusLabel} />
@@ -71,7 +77,7 @@ export default function SheetList({ rows, empty }: { rows: CostSheetSummary[]; e
               <div className="d-flex justify-content-between small">
                 <span>총원가 {fmtWon(r.totalCost)}원</span>
                 <span>
-                  개당 <strong>{fmtWon(r.unitCost)}원</strong> · 마진 {fmtPct(r.marginRate)}
+                  개당 <strong>{fmtWon(r.unitCost)}원</strong> · 승인 판매가 {approvedPrice(r)} · 마진 {fmtPct(r.marginRate)}
                 </span>
               </div>
             </div>

@@ -63,6 +63,11 @@ public class Product extends BaseTimeEntity {
         applySpec(specWeight, specCount);
     }
 
+    /** 원가계산서 최종 승인 시 승인 판매가로 기준 판매가를 바꾼다 */
+    public void changeSalePrice(BigDecimal salePrice) {
+        this.salePrice = salePrice;
+    }
+
     /** 규격(g × EA)으로 표시 문자열과 제품 당 무게를 함께 갱신 */
     private void applySpec(BigDecimal specWeight, int specCount) {
         this.specWeight = specWeight;

@@ -52,6 +52,13 @@ public final class CostSheetDto {
     public record CommentRequest(@Size(max = 1000, message = "의견은 1000자 이내로 입력하세요.") String comment) {
     }
 
+    /** 승인 요청. salePrice 는 최종 결재자만 사용(비우면 작성자가 입력한 개당 판매가) */
+    public record ApproveRequest(
+            @Size(max = 1000, message = "의견은 1000자 이내로 입력하세요.") String comment,
+            @DecimalMin(value = "0", message = "승인 판매가는 0 이상이어야 합니다.") BigDecimal salePrice
+    ) {
+    }
+
     // ---------------------------------------------------------------- response
 
     public record Summary(
@@ -64,6 +71,7 @@ public final class CostSheetDto {
             String statusLabel,
             BigDecimal totalCost,
             BigDecimal unitCost,
+            BigDecimal approvedSalePrice,
             BigDecimal salePrice,
             BigDecimal marginRate,
             String currentApproverName,
@@ -73,7 +81,7 @@ public final class CostSheetDto {
         public static Summary from(CostSheet s) {
             return new Summary(s.getId(), s.getDocNo(), s.getTitle(), s.getProduct().getName(),
                     s.getWriter().getDisplayName(), s.getStatus(), s.getStatus().getLabel(),
-                    s.getTotalCost(), s.getUnitCost(), s.getSalePrice(), s.getMarginRate(),
+                    s.getTotalCost(), s.getUnitCost(), s.getApprovedSalePrice(), s.getSalePrice(), s.getMarginRate(),
                     s.currentStep().map(st -> st.getApprover().getDisplayName()).orElse(null),
                     s.getSubmittedAt(), s.getUpdatedAt());
         }
@@ -100,6 +108,7 @@ public final class CostSheetDto {
             BigDecimal overheadCost,
             BigDecimal totalCost,
             BigDecimal unitCost,
+            BigDecimal approvedSalePrice,
             BigDecimal marginRate,
             String remark,
             CostStatus status,
@@ -120,7 +129,7 @@ public final class CostSheetDto {
                     s.getProductionQty(), s.getUnitWeight(), s.getTotalOutput(),
                     s.getRawLossRate(), s.getTotalInput(), s.getRawSubtotal(), s.getSalePrice(),
                     s.getMaterialCost(), s.getPackagingCost(), s.getLaborCost(), s.getOverheadCost(),
-                    s.getTotalCost(), s.getUnitCost(), s.getMarginRate(), s.getRemark(),
+                    s.getTotalCost(), s.getUnitCost(), s.getApprovedSalePrice(), s.getMarginRate(), s.getRemark(),
                     s.getStatus(), s.getStatus().getLabel(),
                     s.getWriter().getId(), s.getWriter().getDisplayName(),
                     s.getCreatedAt(), s.getSubmittedAt(), s.getCompletedAt(),
@@ -163,8 +172,9 @@ public final class CostSheetDto {
     }
 
     /** 화면에서 버튼 노출 여부를 결정하는 데 쓰는 권한 정보 */
+    /** canSetSalePrice: 최종 결재자 차례라서 승인 시 승인 판매가를 입력할 수 있음 */
     public record Permissions(boolean canEdit, boolean canDelete, boolean canSubmit, boolean canWithdraw,
-                              boolean canApprove) {
+                              boolean canApprove, boolean canSetSalePrice) {
         static Permissions of(CostSheet s, Long viewerId) {
             boolean writer = s.isWriter(viewerId);
             boolean editable = writer && s.getStatus().isEditable();
@@ -173,7 +183,8 @@ public final class CostSheetDto {
                     writer && s.getStatus() == CostStatus.DRAFT,
                     editable,
                     s.isWithdrawable(viewerId),
-                    s.isPendingApprover(viewerId));
+                    s.isPendingApprover(viewerId),
+                    s.isFinalPendingApprover(viewerId));
         }
     }
 

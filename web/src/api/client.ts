@@ -114,8 +114,9 @@ export const api = {
   deleteCostSheet: (id: number) => request<void>('DELETE', `/api/cost-sheets/${id}`),
   submit: (id: number) => request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/submit`),
   withdraw: (id: number) => request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/withdraw`),
-  approve: (id: number, comment: string) =>
-    request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/approve`, { comment }),
+  /** salePrice: 최종 결재자가 입력하는 승인 판매가 (중간 결재자는 무시됨) */
+  approve: (id: number, comment: string, salePrice?: number | null) =>
+    request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/approve`, { comment, salePrice: salePrice ?? null }),
   reject: (id: number, comment: string) =>
     request<CostSheetDetail>('POST', `/api/cost-sheets/${id}/reject`, { comment }),
 
