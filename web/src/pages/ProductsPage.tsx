@@ -4,7 +4,7 @@ import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
-import { fmtInt, fmtWeight } from '../utils/format';
+import { fmtInt } from '../utils/format';
 
 const EMPTY: ProductPayload = { name: '', specWeight: 0, specCount: 1, salePrice: 0, active: true };
 
@@ -68,7 +68,7 @@ export default function ProductsPage() {
               <div className="input-group input-group-sm">
                 <input type="number" step="0.001" min={0} className="form-control text-end" aria-label="규격 무게(g)" required
                   value={form.specWeight} onChange={(e) => setForm({ ...form, specWeight: Number(e.target.value) })} />
-                <span className="input-group-text">g ×</span>
+                <span className="input-group-text">g</span>
                 <input type="number" step="1" min={1} className="form-control text-end" aria-label="규격 입수(EA)" required
                   value={form.specCount} onChange={(e) => setForm({ ...form, specCount: Number(e.target.value) })} />
                 <span className="input-group-text">EA</span>
@@ -77,7 +77,7 @@ export default function ProductsPage() {
             <div className="col-6 col-md-2">
               <label className="form-label small">제품 당 무게(g)</label>
               <input className="form-control form-control-sm text-end bg-light" readOnly tabIndex={-1} aria-label="제품 당 무게(자동)"
-                value={fmtWeight((form.specWeight || 0) * (form.specCount || 0))} title="규격 g × EA 로 자동 계산됩니다" />
+                value={fmtInt((form.specWeight || 0) * (form.specCount || 0))} title="규격 g × EA 로 자동 계산됩니다" />
             </div>
             <div className="col-6 col-md-1">
               <label className="form-label small">판매가(원)</label>
@@ -114,7 +114,7 @@ export default function ProductsPage() {
                   <td>{p.code}</td>
                   <td>{p.name}</td>
                   <td>{p.spec ?? '-'}</td>
-                  <td className="text-end">{fmtWeight(p.unitWeight)}</td>
+                  <td className="text-end">{fmtInt(p.unitWeight)}</td>
                   <td className="text-end">{fmtInt(p.salePrice)}</td>
                   <td>{p.active ? 'Y' : 'N'}</td>
                   {editable && (

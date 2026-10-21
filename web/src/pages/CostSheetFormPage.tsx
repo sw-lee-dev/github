@@ -291,7 +291,7 @@ export default function CostSheetFormPage() {
               <option value="">선택하세요</option>
               {products.filter((p) => p.active || String(p.id) === productId).map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.code} · {p.name} {p.spec ? `(${p.spec})` : ''} · {fmtWeight(p.unitWeight)}g
+                  {p.code} · {p.name} {p.spec ? `(${p.spec})` : ''} · {fmtInt(p.unitWeight)}g
                 </option>
               ))}
             </select>
@@ -330,7 +330,7 @@ export default function CostSheetFormPage() {
             </div>
             {product && num(productionQty) > 0 && (
               <div className="form-text">
-                제품 당 무게 {fmtWeight(product.unitWeight)}g × 배치 생산수량 {fmtInt(num(productionQty))}개
+                제품 당 무게 {fmtInt(product.unitWeight)}g × 배치 생산수량 {fmtInt(num(productionQty))}개
               </div>
             )}
           </div>

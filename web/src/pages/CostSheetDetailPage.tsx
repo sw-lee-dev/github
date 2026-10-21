@@ -153,7 +153,7 @@ export default function CostSheetDetailPage() {
             <dt className="col-4 col-md-2 text-muted fw-normal">배치 생산수량</dt>
             <dd className="col-8 col-md-4">{fmtInt(sheet.productionQty)}개</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">제품 당 무게</dt>
-            <dd className="col-8 col-md-4">{fmtWeight(sheet.unitWeight)}g</dd>
+            <dd className="col-8 col-md-4">{fmtInt(sheet.unitWeight)}g</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">총 생산량</dt>
             <dd className="col-8 col-md-4 fw-semibold">{fmtInt(sheet.totalOutput)}kg</dd>
             <dt className="col-4 col-md-2 text-muted fw-normal">원재료 손실률</dt>
