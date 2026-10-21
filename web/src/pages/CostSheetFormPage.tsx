@@ -4,15 +4,14 @@ import { api } from '../api/client';
 import type { CostSheetSaveRequest, Material, Product, User } from '../api/types';
 import CostSummaryCards from '../components/CostSummaryCards';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
-import { calcCost, packagingAmount, rawAmount, rawQuantity, totalOutputKg } from '../utils/cost';
+import { calcCost, packagingAmount, rawAmount, rawMaterialCost, rawQuantity, totalInputKg, totalOutputKg } from '../utils/cost';
 import { fmtInt, fmtNum, fmtWeight, fmtWon } from '../utils/format';
 
-/** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비 ÷ (1 − 손실률)로 자동 계산 */
+/** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비로 자동 계산 (손실은 기본정보의 원재료 손실률로 반영) */
 interface RawRow {
   key: number;
   materialId: string;
   ratio: string;
-  lossRate: string;
   unitPrice: string;
 }
 
@@ -33,7 +32,7 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 let rowSeq = 0;
-const newRawRow = (): RawRow => ({ key: ++rowSeq, materialId: '', ratio: '', lossRate: '0', unitPrice: '' });
+const newRawRow = (): RawRow => ({ key: ++rowSeq, materialId: '', ratio: '', unitPrice: '' });
 const newPackRow = (): PackRow => ({ key: ++rowSeq, materialId: '', quantity: '', lossRate: '0', unitPrice: '' });
 const num = (v: string) => (v.trim() === '' ? 0 : Number(v));
 
@@ -52,6 +51,7 @@ export default function CostSheetFormPage() {
   const [title, setTitle] = useState('');
   const [productId, setProductId] = useState('');
   const [productionQty, setProductionQty] = useState('');
+  const [rawLossRate, setRawLossRate] = useState('0');
   const [salePrice, setSalePrice] = useState('');
   const [laborCost, setLaborCost] = useState('0');
   const [overheadCost, setOverheadCost] = useState('0');
@@ -75,6 +75,7 @@ export default function CostSheetFormPage() {
         setTitle(s.title);
         setProductId(String(s.productId));
         setProductionQty(String(s.productionQty));
+        setRawLossRate(String(s.rawLossRate));
         setSalePrice(String(s.salePrice));
         setLaborCost(String(s.laborCost));
         setOverheadCost(String(s.overheadCost));
@@ -83,7 +84,6 @@ export default function CostSheetFormPage() {
           key: ++rowSeq,
           materialId: String(i.materialId),
           ratio: i.ratio == null ? '' : String(i.ratio),
-          lossRate: String(i.lossRate),
           unitPrice: Number(i.unitPrice).toFixed(2),
         })));
         setPackRows(s.items.filter((i) => i.materialType === 'PACKAGING').map((i) => ({
@@ -102,11 +102,12 @@ export default function CostSheetFormPage() {
   const materialById = useMemo(() => new Map(materials.map((m) => [m.id, m])), [materials]);
   const product = products.find((x) => x.id === Number(productId));
   const totalKg = totalOutputKg(product?.unitWeight ?? 0, num(productionQty));
+  const totalInput = totalInputKg(totalKg, num(rawLossRate));
 
   // 원자재 행별 투입량/금액, 포장자재 행별 금액
   const rawCalc = useMemo(() => rawRows.map((r) => {
     const unit = materialById.get(Number(r.materialId))?.unit ?? 'kg';
-    const quantity = r.materialId ? rawQuantity(totalKg, num(r.ratio), num(r.lossRate), unit) : 0;
+    const quantity = r.materialId ? rawQuantity(totalKg, num(r.ratio), unit) : 0;
     return { unit, quantity, amount: rawAmount(quantity, num(r.unitPrice)) };
   }), [rawRows, materialById, totalKg]);
   const packCalc = useMemo(() => packRows.map((r) => ({
@@ -115,7 +116,8 @@ export default function CostSheetFormPage() {
   })), [packRows, materialById]);
 
   const ratioSum = Math.round(rawRows.filter((r) => r.materialId).reduce((acc, r) => acc + num(r.ratio), 0) * 1000) / 1000;
-  const materialCost = rawCalc.reduce((acc, c) => acc + c.amount, 0);
+  const rawSubtotal = Math.round(rawCalc.reduce((acc, c) => acc + c.amount, 0) * 100) / 100;
+  const materialCost = rawMaterialCost(rawSubtotal, num(rawLossRate));
   const packagingCost = packCalc.reduce((acc, c) => acc + c.amount, 0);
   const preview = calcCost(materialCost, packagingCost, num(laborCost), num(overheadCost), num(productionQty), num(salePrice));
 
@@ -152,6 +154,7 @@ export default function CostSheetFormPage() {
     title: title.trim(),
     productId: Number(productId),
     productionQty: num(productionQty),
+    rawLossRate: num(rawLossRate),
     salePrice: num(salePrice),
     laborCost: num(laborCost),
     overheadCost: num(overheadCost),
@@ -162,7 +165,7 @@ export default function CostSheetFormPage() {
         ratio: num(r.ratio),
         quantity: null,
         unitPrice: r.unitPrice.trim() === '' ? null : num(r.unitPrice),
-        lossRate: num(r.lossRate),
+        lossRate: null,
       })),
       ...packRows.filter((r) => r.materialId).map((r) => ({
         materialId: Number(r.materialId),
@@ -318,7 +321,7 @@ export default function CostSheetFormPage() {
               onChange={(e) => setOverheadCost(e.target.value)} required />
             <div className="form-text">전력·가스·감가상각 등</div>
           </div>
-          <div className="col-12 col-md-6">
+          <div className="col-12 col-md-4">
             <label className="form-label" htmlFor="totalOutput">총 생산량 (자동 계산)</label>
             <div className="input-group">
               <input id="totalOutput" className="form-control text-end fw-semibold bg-light" readOnly tabIndex={-1}
@@ -330,6 +333,24 @@ export default function CostSheetFormPage() {
                 제품 당 무게 {fmtWeight(product.unitWeight)}g × 배치 생산수량 {fmtInt(num(productionQty))}개
               </div>
             )}
+          </div>
+          <div className="col-6 col-md-4">
+            <label className="form-label" htmlFor="rawLoss">원재료 손실률(%) *</label>
+            <div className="input-group">
+              <input id="rawLoss" type="number" step="any" min={0} max={99.99} className="form-control text-end" required
+                value={rawLossRate} onChange={(e) => setRawLossRate(e.target.value)} />
+              <span className="input-group-text">%</span>
+            </div>
+            <div className="form-text">세척·가열·불량 등 원재료 손실분 (100% 미만)</div>
+          </div>
+          <div className="col-6 col-md-4">
+            <label className="form-label" htmlFor="totalInput">총 투입량 (자동 계산)</label>
+            <div className="input-group">
+              <input id="totalInput" className="form-control text-end fw-semibold bg-light" readOnly tabIndex={-1}
+                value={product && num(productionQty) > 0 ? fmtWeight(totalInput) : ''} />
+              <span className="input-group-text">kg</span>
+            </div>
+            <div className="form-text">총 생산량 ÷ (1 − 원재료 손실률%)</div>
           </div>
           <div className="col-12">
             <label className="form-label" htmlFor="remark">비고 (변경 사유 등)</label>
@@ -352,7 +373,7 @@ export default function CostSheetFormPage() {
               </button>
             </div>
             <div className="bom-row bom-raw bom-head d-none d-md-grid" aria-hidden="true">
-              <span>자재</span><span className="text-end">배합비(%)</span><span className="text-end">손실률(%)</span>
+              <span>자재</span><span className="text-end">배합비(%)</span>
               <span className="text-end">투입량</span><span className="text-end">단가(원)</span><span className="text-end">금액(원)</span><span />
             </div>
             <div className="vstack gap-2">
@@ -370,11 +391,6 @@ export default function CostSheetFormPage() {
                     <span className="cell-label">배합비(%)</span>
                     <input type="number" step="any" min={0} max={100} className="form-control form-control-sm text-end" aria-label="배합비" required={!!r.materialId}
                       value={r.ratio} onChange={(e) => updateRaw(r.key, { ratio: e.target.value })} />
-                  </label>
-                  <label className="bom-cell">
-                    <span className="cell-label">손실률(%)</span>
-                    <input type="number" step="any" min={0} max={99.99} className="form-control form-control-sm text-end" aria-label="손실률"
-                      value={r.lossRate} onChange={(e) => updateRaw(r.key, { lossRate: e.target.value })} />
                   </label>
                   <label className="bom-cell">
                     <span className="cell-label">투입량</span>
@@ -405,9 +421,16 @@ export default function CostSheetFormPage() {
                 <span className={`badge ${ratioOk ? 'text-bg-success' : 'text-bg-warning'}`} data-testid="ratio-sum">{fmtNum(ratioSum)}%</span>
                 {!ratioOk && <span className="text-warning-emphasis ms-2">합계가 100%가 되도록 입력하세요.</span>}
               </span>
-              <span>원자재 합계 <strong>{fmtWon(materialCost)}</strong>원</span>
+              <span className="text-end">
+                원자재 합계 <strong data-testid="raw-subtotal">{fmtWon(rawSubtotal)}</strong>원
+                <span className="mx-2 text-muted">→</span>
+                원재료비 <strong data-testid="raw-cost">{fmtWon(materialCost)}</strong>원
+                <span className="text-muted"> (÷ (1 − {fmtNum(num(rawLossRate))}%))</span>
+              </span>
             </div>
-            <div className="form-text">투입량 = 총 생산량 × 배합비% ÷ (1 − 손실률%), 금액 = 투입량 × 단가. 손실률은 100% 미만</div>
+            <div className="form-text">
+              투입량 = 총 생산량 × 배합비%, 금액 = 투입량 × 단가, 원재료비 = 원자재 합계 ÷ (1 − 원재료 손실률%)
+            </div>
           </section>
 
           <section aria-labelledby="pack-title">

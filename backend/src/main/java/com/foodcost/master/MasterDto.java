@@ -2,6 +2,7 @@ package com.foodcost.master;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -43,21 +44,21 @@ public final class MasterDto {
         }
     }
 
-    /** 제품코드는 서버에서 자동 채번(FG-0001)하므로 받지 않는다. */
+    /** 제품코드는 자동 채번(FG-0001), 규격 문자열과 제품 당 무게는 g × EA 로 서버가 만든다. */
     public record ProductRequest(
             @NotBlank(message = "제품명을 입력하세요.") @Size(max = 100) String name,
-            @Size(max = 100) String spec,
-            @NotNull(message = "제품 당 무게(g)를 입력하세요.") @DecimalMin(value = "0", inclusive = false, message = "제품 당 무게는 0보다 커야 합니다.") BigDecimal unitWeight,
+            @NotNull(message = "규격의 무게(g)를 입력하세요.") @DecimalMin(value = "0", inclusive = false, message = "규격의 무게(g)는 0보다 커야 합니다.") BigDecimal specWeight,
+            @NotNull(message = "규격의 입수(EA)를 입력하세요.") @Min(value = 1, message = "규격의 입수(EA)는 1 이상이어야 합니다.") Integer specCount,
             @NotNull(message = "판매가를 입력하세요.") @DecimalMin(value = "0", message = "판매가는 0 이상이어야 합니다.") BigDecimal salePrice,
             Boolean active
     ) {
     }
 
-    public record ProductResponse(Long id, String code, String name, String spec, BigDecimal unitWeight,
-                                  BigDecimal salePrice, boolean active) {
+    public record ProductResponse(Long id, String code, String name, BigDecimal specWeight, int specCount,
+                                  String spec, BigDecimal unitWeight, BigDecimal salePrice, boolean active) {
         public static ProductResponse from(Product p) {
-            return new ProductResponse(p.getId(), p.getCode(), p.getName(), p.getSpec(), p.getUnitWeight(),
-                    p.getSalePrice(), p.isActive());
+            return new ProductResponse(p.getId(), p.getCode(), p.getName(), p.getSpecWeight(), p.getSpecCount(),
+                    p.getSpec(), p.getUnitWeight(), p.getSalePrice(), p.isActive());
         }
     }
 }

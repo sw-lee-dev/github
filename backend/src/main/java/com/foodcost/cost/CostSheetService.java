@@ -125,7 +125,7 @@ public class CostSheetService {
     private void apply(CostSheet sheet, SaveRequest req) {
         Product product = productRepository.findById(req.productId())
                 .orElseThrow(() -> ApiException.badRequest("존재하지 않는 제품입니다."));
-        sheet.updateContent(req.title().trim(), product, req.productionQty(), req.salePrice(),
+        sheet.updateContent(req.title().trim(), product, req.productionQty(), req.rawLossRate(), req.salePrice(),
                 req.laborCost(), req.overheadCost(), req.remark());
 
         Set<Long> seen = new HashSet<>();
@@ -149,9 +149,6 @@ public class CostSheetService {
             if (material.getType() == MaterialType.RAW) {
                 if (item.ratio() == null) {
                     throw ApiException.badRequest("원자재 '" + material.getName() + "'의 배합비(%)를 입력하세요.");
-                }
-                if (lossRate.compareTo(BigDecimal.valueOf(100)) >= 0) {
-                    throw ApiException.badRequest("원자재 '" + material.getName() + "'의 손실률은 100% 미만이어야 합니다.");
                 }
                 return new CostSheet.ItemLine(material, item.ratio(), null, unitPrice, lossRate);
             }

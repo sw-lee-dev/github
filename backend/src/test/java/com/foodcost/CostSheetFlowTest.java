@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -50,16 +51,18 @@ class CostSheetFlowTest {
     @Test
     void 원가가_서버에서_계산된다() throws Exception {
         String writer = login("writer");
-        // 제품 FG-0001(버터쿠키 200g) × 100개 → 총 생산량 20kg
-        // 원자재 투입량 = 20kg × 배합비 ÷ (1 − 손실률), 금액 = 투입량 × 단가
-        //   박력분 50%, 손실 0%  → 10kg   × 1,000 = 10,000
-        //   백설탕 50%, 손실 20% → 12.5kg × 1,000 = 12,500
+        // 제품 FG-0001(버터쿠키 20g × 10EA = 200g) × 100개 → 총 생산량 20kg
+        // 원재료 손실률 20% → 총 투입량 = 20 ÷ (1 − 0.2) = 25kg
+        // 원자재 투입량 = 20kg × 배합비, 금액 = 투입량 × 단가 (원자재 행에는 손실률 없음)
+        //   박력분 50% → 10kg × 1,000 = 10,000 / 백설탕 50% → 10kg × 1,000 = 10,000 → 원자재 합계 20,000
+        //   원재료비 = 20,000 ÷ (1 − 0.2) = 25,000
         // 포장자재 금액 = 투입량 × 단가 × (1 + 손실률): 필름 1,000EA × 20원 × 1.1 = 22,000
-        Map<String, Object> body = sheetBody(List.of(
-                Map.of("materialId", materialId(writer, "M-0001"), "ratio", 50, "unitPrice", 1000, "lossRate", 0),
-                Map.of("materialId", materialId(writer, "M-0002"), "ratio", 50, "unitPrice", 1000, "lossRate", 20),
+        Map<String, Object> body = new HashMap<>(sheetBody(List.of(
+                Map.of("materialId", materialId(writer, "M-0001"), "ratio", 50, "unitPrice", 1000),
+                Map.of("materialId", materialId(writer, "M-0002"), "ratio", 50, "unitPrice", 1000, "lossRate", 30),
                 Map.of("materialId", materialId(writer, "P-0001"), "quantity", 1000, "unitPrice", 20, "lossRate", 10)
-        ), List.of(userId(writer, "leader")));
+        ), List.of(userId(writer, "leader"))));
+        body.put("rawLossRate", 20);
 
         JsonNode sheet = json(mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
                 .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(body)))
@@ -67,16 +70,21 @@ class CostSheetFlowTest {
 
         assertThat(sheet.get("unitWeight").decimalValue()).isEqualByComparingTo("200");
         assertThat(sheet.get("totalOutput").decimalValue()).isEqualByComparingTo("20");
+        assertThat(sheet.get("rawLossRate").decimalValue()).isEqualByComparingTo("20");
+        assertThat(sheet.get("totalInput").decimalValue()).isEqualByComparingTo("25");
         assertThat(sheet.at("/items/0/ratio").decimalValue()).isEqualByComparingTo("50");
         assertThat(sheet.at("/items/0/quantity").decimalValue()).isEqualByComparingTo("10");
-        assertThat(sheet.at("/items/1/quantity").decimalValue()).isEqualByComparingTo("12.5");
+        // 원자재 행에 손실률을 보내도 무시된다
+        assertThat(sheet.at("/items/1/quantity").decimalValue()).isEqualByComparingTo("10");
+        assertThat(sheet.at("/items/1/lossRate").decimalValue()).isEqualByComparingTo("0");
         assertThat(sheet.at("/items/2/ratio").isNull()).isTrue();
-        // 총원가 = 22,500 + 22,000 + 노무비 50,000 + 경비 20,000 = 114,500 / 100개 = 1,145원, 판매가 2,500원 → 마진 54.2%
-        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("22500");
+        assertThat(sheet.get("rawSubtotal").decimalValue()).isEqualByComparingTo("20000");
+        // 총원가 = 25,000 + 22,000 + 노무비 50,000 + 경비 20,000 = 117,000 / 100개 = 1,170원, 판매가 2,500원 → 마진 53.2%
+        assertThat(sheet.get("materialCost").decimalValue()).isEqualByComparingTo("25000");
         assertThat(sheet.get("packagingCost").decimalValue()).isEqualByComparingTo("22000");
-        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("114500");
-        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("1145");
-        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("54.2");
+        assertThat(sheet.get("totalCost").decimalValue()).isEqualByComparingTo("117000");
+        assertThat(sheet.get("unitCost").decimalValue()).isEqualByComparingTo("1170");
+        assertThat(sheet.get("marginRate").decimalValue()).isEqualByComparingTo("53.2");
         assertThat(sheet.get("status").asText()).isEqualTo("DRAFT");
         assertThat(sheet.get("docNo").asText()).startsWith("CS-");
     }
@@ -100,13 +108,18 @@ class CostSheetFlowTest {
         List<Long> line = List.of(userId(writer, "leader"));
         for (Map<String, Object> item : List.of(
                 Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "quantity", 10),
-                Map.<String, Object>of("materialId", materialId(writer, "P-0001"), "ratio", 10),
-                Map.<String, Object>of("materialId", materialId(writer, "M-0001"), "ratio", 10, "lossRate", 100))) {
+                Map.<String, Object>of("materialId", materialId(writer, "P-0001"), "ratio", 10))) {
             mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(om.writeValueAsString(sheetBody(List.of(item), line))))
                     .andExpect(status().isBadRequest());
         }
+        // 원재료 손실률은 100% 미만
+        Map<String, Object> body = new HashMap<>(sheetBody(defaultItems(writer), line));
+        body.put("rawLossRate", 100);
+        mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(body)))
+                .andExpect(status().isBadRequest());
     }
 
     /** 롤백을 확인해야 하므로 테스트 트랜잭션 없이 실행한다 (성공 건은 커밋되어 남는다). */
@@ -143,7 +156,7 @@ class CostSheetFlowTest {
     void 수정후_상신이_실패하면_수정내용도_저장되지_않는다() throws Exception {
         String writer = login("writer");
         long id = createSheet(writer, List.of(userId(writer, "leader")));
-        Map<String, Object> changed = new java.util.HashMap<>(sheetBody(defaultItems(writer), List.of()));
+        Map<String, Object> changed = new HashMap<>(sheetBody(defaultItems(writer), List.of()));
         changed.put("title", "바뀐 제목");
 
         mvc.perform(put("/api/cost-sheets/" + id + "?submit=true").header("Authorization", writer)
@@ -228,7 +241,7 @@ class CostSheetFlowTest {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"테스트\",\"unitWeight\":100,\"salePrice\":1000}"))
+                        .content("{\"name\":\"테스트\",\"specWeight\":100,\"specCount\":1,\"salePrice\":1000}"))
                 .andExpect(status().isForbidden());
     }
 
@@ -258,7 +271,7 @@ class CostSheetFlowTest {
     }
 
     private Map<String, Object> sheetBody(List<Map<String, Object>> items, List<Long> approverIds) throws Exception {
-        return Map.of("title", "테스트 원가", "productId", 1, "productionQty", 100, "salePrice", 2500,
+        return Map.of("title", "테스트 원가", "productId", 1, "productionQty", 100, "rawLossRate", 0, "salePrice", 2500,
                 "laborCost", 50000, "overheadCost", 20000, "items", items, "approverIds", approverIds);
     }
 

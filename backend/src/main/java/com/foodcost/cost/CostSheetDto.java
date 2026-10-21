@@ -23,6 +23,8 @@ public final class CostSheetDto {
             @NotBlank(message = "제목을 입력하세요.") @Size(max = 200, message = "제목은 200자 이내로 입력하세요.") String title,
             @NotNull(message = "제품을 선택하세요.") Long productId,
             @NotNull(message = "생산수량을 입력하세요.") @Min(value = 1, message = "생산수량은 1 이상이어야 합니다.") Integer productionQty,
+            @NotNull(message = "원재료 손실률을 입력하세요.") @DecimalMin(value = "0", message = "원재료 손실률은 0 이상이어야 합니다.")
+            @DecimalMax(value = "100", inclusive = false, message = "원재료 손실률은 100% 미만이어야 합니다.") BigDecimal rawLossRate,
             @NotNull(message = "판매가를 입력하세요.") @DecimalMin(value = "0", message = "판매가는 0 이상이어야 합니다.") BigDecimal salePrice,
             @NotNull(message = "노무비를 입력하세요.") @DecimalMin(value = "0", message = "노무비는 0 이상이어야 합니다.") BigDecimal laborCost,
             @NotNull(message = "제조경비를 입력하세요.") @DecimalMin(value = "0", message = "제조경비는 0 이상이어야 합니다.") BigDecimal overheadCost,
@@ -33,8 +35,8 @@ public final class CostSheetDto {
     }
 
     /**
-     * 원자재는 ratio(배합비%)를, 포장자재는 quantity(투입량)를 입력한다.
-     * 원자재 투입량은 서버가 총 생산량 × 배합비 ÷ (1 − 손실률)로 계산하므로 quantity 를 보내도 무시한다.
+     * 원자재는 ratio(배합비%)를, 포장자재는 quantity(투입량)와 lossRate 를 입력한다.
+     * 원자재 투입량은 서버가 총 생산량 × 배합비로 계산하므로 quantity·lossRate 를 보내도 무시한다.
      */
     public record ItemRequest(
             @NotNull(message = "자재를 선택하세요.") Long materialId,
@@ -88,6 +90,9 @@ public final class CostSheetDto {
             int productionQty,
             BigDecimal unitWeight,
             BigDecimal totalOutput,
+            BigDecimal rawLossRate,
+            BigDecimal totalInput,
+            BigDecimal rawSubtotal,
             BigDecimal salePrice,
             BigDecimal materialCost,
             BigDecimal packagingCost,
@@ -112,7 +117,8 @@ public final class CostSheetDto {
         public static Detail of(CostSheet s, Long viewerId) {
             return new Detail(s.getId(), s.getDocNo(), s.getTitle(),
                     s.getProduct().getId(), s.getProduct().getCode(), s.getProduct().getName(), s.getProduct().getSpec(),
-                    s.getProductionQty(), s.getUnitWeight(), s.getTotalOutput(), s.getSalePrice(),
+                    s.getProductionQty(), s.getUnitWeight(), s.getTotalOutput(),
+                    s.getRawLossRate(), s.getTotalInput(), s.getRawSubtotal(), s.getSalePrice(),
                     s.getMaterialCost(), s.getPackagingCost(), s.getLaborCost(), s.getOverheadCost(),
                     s.getTotalCost(), s.getUnitCost(), s.getMarginRate(), s.getRemark(),
                     s.getStatus(), s.getStatus().getLabel(),

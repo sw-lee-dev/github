@@ -55,9 +55,21 @@ class MasterDataCodeTest {
     @Test
     void 제품_수정으로_코드는_바뀌지_않는다() {
         ProductResponse created = service.createProduct(product("신제품"));
-        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", "1kg", BigDecimal.valueOf(1000), BigDecimal.TEN, true));
+        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", BigDecimal.valueOf(250), 4, BigDecimal.TEN, true));
         assertThat(updated.code()).isEqualTo(created.code());
         assertThat(updated.name()).isEqualTo("이름변경");
+        assertThat(updated.spec()).isEqualTo("250g × 4EA");
+        assertThat(updated.unitWeight()).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void 규격은_g_x_EA_로_저장되고_제품_당_무게가_자동_계산된다() {
+        ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", new BigDecimal("12.5"), 16, BigDecimal.valueOf(3000), true));
+        assertThat(p.spec()).isEqualTo("12.5g × 16EA");
+        assertThat(p.specWeight()).isEqualByComparingTo("12.5");
+        assertThat(p.specCount()).isEqualTo(16);
+        assertThat(p.unitWeight()).isEqualByComparingTo("200");
+        assertThat(service.products().get(0).spec()).isEqualTo("20g × 10EA");
     }
 
     @Test
@@ -98,7 +110,7 @@ class MasterDataCodeTest {
     }
 
     private static ProductRequest product(String name) {
-        return new ProductRequest(name, null, BigDecimal.valueOf(100), BigDecimal.valueOf(1000), true);
+        return new ProductRequest(name, BigDecimal.valueOf(100), 1, BigDecimal.valueOf(1000), true);
     }
 
     private static MaterialRequest material(String name, MaterialType type) {

@@ -78,9 +78,10 @@ export interface MaterialPayload {
 /** 제품코드는 서버가 자동 채번(FG-0001)하므로 보내지 않는다. */
 export interface ProductPayload {
   name: string;
-  spec: string | null;
-  /** 제품 1개당 무게(g) */
-  unitWeight: number;
+  /** 규격 낱개 무게(g). 규격 문자열과 제품 당 무게는 서버가 만든다 */
+  specWeight: number;
+  /** 규격 입수(EA) */
+  specCount: number;
   salePrice: number;
   active: boolean;
 }

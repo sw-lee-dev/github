@@ -26,8 +26,11 @@ import java.util.Optional;
 /**
  * 제조원가계산서 (결재 문서).
  * <pre>
- * 총 생산량 = 제품 당 무게(g) × 생산수량 ÷ 1000 (kg)
- * 총원가   = 원재료비 + 포장재비 + 노무비 + 제조경비
+ * 총 생산량   = 제품 당 무게(g) × 생산수량 ÷ 1000 (kg)
+ * 총 투입량   = 총 생산량 ÷ (1 − 원재료 손실률%)
+ * 원자재 합계 = Σ(총 생산량 × 배합비% × 단가)
+ * 원재료비    = 원자재 합계 ÷ (1 − 원재료 손실률%)
+ * 총원가     = 원재료비 + 포장재비 + 노무비 + 제조경비
  * 개당원가 = 총원가 ÷ 생산수량
  * 마진율   = (판매가 - 개당원가) ÷ 판매가 × 100
  * </pre>
@@ -67,6 +70,14 @@ public class CostSheet extends BaseTimeEntity {
     @Column(nullable = false, precision = 15, scale = 3)
     private BigDecimal totalOutput;
 
+    /** 원재료 손실률(%) - 0 이상 100 미만 */
+    @Column(nullable = false, precision = 5, scale = 2)
+    private BigDecimal rawLossRate = BigDecimal.ZERO;
+
+    /** 총 투입량(kg) = 총 생산량 ÷ (1 − 원재료 손실률%) */
+    @Column(nullable = false, precision = 15, scale = 3)
+    private BigDecimal totalInput = BigDecimal.ZERO;
+
     /** 개당 판매가(원) */
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal salePrice;
@@ -82,6 +93,11 @@ public class CostSheet extends BaseTimeEntity {
     @Column(length = 2000)
     private String remark;
 
+    /** 원자재 합계(손실 반영 전) = Σ 원자재 품목 금액 */
+    @Column(nullable = false, precision = 18, scale = 2)
+    private BigDecimal rawSubtotal = BigDecimal.ZERO;
+
+    /** 원재료비 = 원자재 합계 ÷ (1 − 원재료 손실률%) */
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal materialCost = BigDecimal.ZERO;
 
@@ -137,15 +153,20 @@ public class CostSheet extends BaseTimeEntity {
 
     // ---------------------------------------------------------------- 작성/수정
 
-    public void updateContent(String title, Product product, int productionQty, BigDecimal salePrice,
-                              BigDecimal laborCost, BigDecimal overheadCost, String remark) {
+    public void updateContent(String title, Product product, int productionQty, BigDecimal rawLossRate,
+                              BigDecimal salePrice, BigDecimal laborCost, BigDecimal overheadCost, String remark) {
         ensureEditable();
+        if (rawLossRate.compareTo(HUNDRED) >= 0) {
+            throw ApiException.badRequest("원재료 손실률은 100% 미만이어야 합니다.");
+        }
         this.title = title;
         this.product = product;
         this.productionQty = productionQty;
         this.unitWeight = product.getUnitWeight();
         this.totalOutput = unitWeight.multiply(BigDecimal.valueOf(productionQty))
                 .divide(BigDecimal.valueOf(1000), 3, RoundingMode.HALF_UP);
+        this.rawLossRate = rawLossRate;
+        this.totalInput = totalOutput.divide(rawYield(), 3, RoundingMode.HALF_UP);
         this.salePrice = salePrice;
         this.laborCost = laborCost;
         this.overheadCost = overheadCost;
@@ -158,8 +179,7 @@ public class CostSheet extends BaseTimeEntity {
         int lineNo = 1;
         for (ItemLine line : lines) {
             items.add(line.material().getType() == MaterialType.RAW
-                    ? CostSheetItem.raw(this, lineNo++, line.material(), line.ratio(), line.unitPrice(),
-                    line.lossRate(), totalOutput)
+                    ? CostSheetItem.raw(this, lineNo++, line.material(), line.ratio(), line.unitPrice(), totalOutput)
                     : CostSheetItem.packaging(this, lineNo++, line.material(), line.quantity(), line.unitPrice(),
                     line.lossRate()));
         }
@@ -187,7 +207,8 @@ public class CostSheet extends BaseTimeEntity {
     }
 
     public void recalculate() {
-        materialCost = sumAmount(MaterialType.RAW);
+        rawSubtotal = sumAmount(MaterialType.RAW);
+        materialCost = rawSubtotal.divide(rawYield(), 2, RoundingMode.HALF_UP);
         packagingCost = sumAmount(MaterialType.PACKAGING);
         totalCost = materialCost.add(packagingCost).add(laborCost).add(overheadCost);
         unitCost = productionQty > 0
@@ -196,6 +217,11 @@ public class CostSheet extends BaseTimeEntity {
         marginRate = salePrice.signum() > 0
                 ? salePrice.subtract(unitCost).multiply(HUNDRED).divide(salePrice, 2, RoundingMode.HALF_UP)
                 : null;
+    }
+
+    /** 1 − 원재료 손실률% */
+    private BigDecimal rawYield() {
+        return BigDecimal.ONE.subtract(rawLossRate.divide(HUNDRED, 6, RoundingMode.HALF_UP));
     }
 
     private BigDecimal sumAmount(MaterialType type) {

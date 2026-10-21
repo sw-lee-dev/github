@@ -101,9 +101,9 @@ public class DataInitializer implements ApplicationRunner {
     /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003 */
     private Map<String, Long> createProducts() {
         return List.of(
-                        new ProductRequest("버터쿠키", "200g (10입)", bd(200), bd(4_500), true),
-                        new ProductRequest("초코칩쿠키", "180g (9입)", bd(180), bd(4_800), true),
-                        new ProductRequest("우유식빵", "400g", bd(400), bd(3_900), true))
+                        new ProductRequest("버터쿠키", bd(20), 10, bd(4_500), true),
+                        new ProductRequest("초코칩쿠키", bd(20), 9, bd(4_800), true),
+                        new ProductRequest("우유식빵", bd(400), 1, bd(3_900), true))
                 .stream()
                 .map(masterDataService::createProduct)
                 .collect(Collectors.toMap(r -> r.code(), r -> r.id()));
@@ -112,6 +112,7 @@ public class DataInitializer implements ApplicationRunner {
     /**
      * 원자재는 배합비(%), 포장자재는 투입량으로 입력한다.
      * 총 생산량: 버터쿠키 200g × 2,000개 = 400kg / 초코칩쿠키 180g × 1,800개 = 324kg / 우유식빵 400g × 3,000개 = 1,200kg
+     * 원재료 손실률: 버터쿠키·초코칩쿠키 2%, 우유식빵 1.5%
      */
     private void createSampleSheets(Map<String, User> u, Map<String, Long> m, Map<String, Long> p) {
         AuthUser writer = auth(u.get("writer"));
@@ -119,7 +120,7 @@ public class DataInitializer implements ApplicationRunner {
 
         // 1) 승인 완료된 문서
         var approved = costSheetService.create(writer, new SaveRequest(
-                "버터쿠키 2026년 3분기 표준원가", p.get("FG-0001"), 2_000, bd(4_500), bd(880_000), bd(430_000),
+                "버터쿠키 2026년 3분기 표준원가", p.get("FG-0001"), 2_000, new BigDecimal("2"), bd(4_500), bd(880_000), bd(430_000),
                 "3분기 표준원가 확정 건", butterCookieItems(m, 12_300), line));
         costSheetService.submit(writer, approved.id());
         costSheetService.approve(auth(u.get("leader")), approved.id(), "확인했습니다.");
@@ -128,7 +129,7 @@ public class DataInitializer implements ApplicationRunner {
 
         // 2) 팀장 승인 후 공장장 결재 대기
         var inProgress = costSheetService.create(writer, new SaveRequest(
-                "버터쿠키 2026년 4분기 원가 (버터 단가 인상 반영)", p.get("FG-0001"), 2_000, bd(4_500),
+                "버터쿠키 2026년 4분기 원가 (버터 단가 인상 반영)", p.get("FG-0001"), 2_000, new BigDecimal("2"), bd(4_500),
                 bd(900_000), bd(450_000),
                 "무염버터 매입단가 12,300원 → 12,800원 인상분 반영", butterCookieItems(m, 12_800), line));
         costSheetService.submit(writer, inProgress.id());
@@ -136,11 +137,11 @@ public class DataInitializer implements ApplicationRunner {
 
         // 3) 팀장 결재 대기
         var waiting = costSheetService.create(writer, new SaveRequest(
-                "초코칩쿠키 신규 배합 원가", p.get("FG-0002"), 1_800, bd(4_800), bd(850_000), bd(420_000),
+                "초코칩쿠키 신규 배합 원가", p.get("FG-0002"), 1_800, new BigDecimal("2"), bd(4_800), bd(850_000), bd(420_000),
                 "초콜릿칩 배합비 8% → 10.7% 상향", List.of(
-                raw(m, "M-0001", "36", "2"), raw(m, "M-0002", "19", "2"), raw(m, "M-0003", "22", "1.5"),
-                raw(m, "M-0004", "9", "3"), raw(m, "M-0008", "3", "1"), raw(m, "M-0009", "10.7", "1"),
-                raw(m, "M-0006", "0.3", "0"),
+                raw(m, "M-0001", "36"), raw(m, "M-0002", "19"), raw(m, "M-0003", "22"),
+                raw(m, "M-0004", "9"), raw(m, "M-0008", "3"), raw(m, "M-0009", "10.7"),
+                raw(m, "M-0006", "0.3"),
                 pack(m, "P-0001", "16200", "1"), pack(m, "P-0002", "1800", "1"), pack(m, "P-0003", "1800", "1"),
                 pack(m, "P-0004", "90", "0")),
                 List.of(u.get("leader").getId(), u.get("plant").getId())));
@@ -148,10 +149,10 @@ public class DataInitializer implements ApplicationRunner {
 
         // 4) 임시저장
         costSheetService.create(writer, new SaveRequest(
-                "우유식빵 원가 검토 (초안)", p.get("FG-0003"), 3_000, bd(3_900), bd(1_100_000), bd(600_000),
+                "우유식빵 원가 검토 (초안)", p.get("FG-0003"), 3_000, new BigDecimal("1.5"), bd(3_900), bd(1_100_000), bd(600_000),
                 null, List.of(
-                raw(m, "M-0010", "58", "1.5"), raw(m, "M-0012", "31", "1"), raw(m, "M-0002", "5", "1"),
-                raw(m, "M-0003", "3.6", "1"), raw(m, "M-0011", "1.2", "0"), raw(m, "M-0006", "1.2", "0"),
+                raw(m, "M-0010", "58"), raw(m, "M-0012", "31"), raw(m, "M-0002", "5"),
+                raw(m, "M-0003", "3.6"), raw(m, "M-0011", "1.2"), raw(m, "M-0006", "1.2"),
                 pack(m, "P-0005", "3000", "1")),
                 List.of(u.get("leader").getId())));
     }
@@ -159,22 +160,22 @@ public class DataInitializer implements ApplicationRunner {
     /** 버터쿠키 배합비 합계 100% */
     private static List<ItemRequest> butterCookieItems(Map<String, Long> m, long butterPrice) {
         return List.of(
-                raw(m, "M-0001", "40", "2"),
-                raw(m, "M-0002", "22", "2"),
-                new ItemRequest(m.get("M-0003"), new BigDecimal("26"), null, BigDecimal.valueOf(butterPrice), new BigDecimal("1.5")),
-                raw(m, "M-0004", "9", "3"),
-                raw(m, "M-0005", "2.5", "1"),
-                raw(m, "M-0006", "0.4", "0"),
-                raw(m, "M-0007", "0.1", "0"),
+                raw(m, "M-0001", "40"),
+                raw(m, "M-0002", "22"),
+                new ItemRequest(m.get("M-0003"), new BigDecimal("26"), null, BigDecimal.valueOf(butterPrice), null),
+                raw(m, "M-0004", "9"),
+                raw(m, "M-0005", "2.5"),
+                raw(m, "M-0006", "0.4"),
+                raw(m, "M-0007", "0.1"),
                 pack(m, "P-0001", "20000", "1"),
                 pack(m, "P-0002", "2000", "1"),
                 pack(m, "P-0003", "2000", "1"),
                 pack(m, "P-0004", "100", "0"));
     }
 
-    /** 원자재: 배합비(%)와 손실률(%) */
-    private static ItemRequest raw(Map<String, Long> m, String code, String ratio, String loss) {
-        return new ItemRequest(m.get(code), new BigDecimal(ratio), null, null, new BigDecimal(loss));
+    /** 원자재: 배합비(%). 손실은 원가계산서의 원재료 손실률로 반영 */
+    private static ItemRequest raw(Map<String, Long> m, String code, String ratio) {
+        return new ItemRequest(m.get(code), new BigDecimal(ratio), null, null, null);
     }
 
     /** 포장자재: 투입량과 손실률(%) */

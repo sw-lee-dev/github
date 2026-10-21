@@ -6,7 +6,7 @@ import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
 import { fmtInt, fmtWeight } from '../utils/format';
 
-const EMPTY: ProductPayload = { name: '', spec: '', unitWeight: 0, salePrice: 0, active: true };
+const EMPTY: ProductPayload = { name: '', specWeight: 0, specCount: 1, salePrice: 0, active: true };
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -25,7 +25,7 @@ export default function ProductsPage() {
     e.preventDefault();
     if (!form) return;
     try {
-      const body = { ...form, spec: form.spec?.trim() || null };
+      const body = form;
       const saved = editingId ? await api.updateProduct(editingId, body) : await api.createProduct(body);
       setNotice(`${saved.code} ${saved.name} ${editingId ? '수정' : '등록'} 완료`);
       setForm(null);
@@ -56,28 +56,35 @@ export default function ProductsPage() {
               <label className="form-label small">제품코드</label>
               <input className="form-control form-control-sm bg-light" readOnly tabIndex={-1}
                 value={editingId ? editingCode : nextCode(PRODUCT_CODE_PREFIX, (rows ?? []).map((p) => p.code))}
-                title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />            </div>
+                title="제품코드는 자동으로 부여되며 수정할 수 없습니다" />
+            </div>
             <div className="col-6 col-md-2">
               <label className="form-label small">제품명</label>
               <input className="form-control form-control-sm" value={form.name} required
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
-            <div className="col-6 col-md-2">
-              <label className="form-label small">규격</label>
-              <input className="form-control form-control-sm" value={form.spec ?? ''}
-                onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="200g (10입)" />
+            <div className="col-12 col-md-3">
+              <label className="form-label small">규격 (무게 × 입수)</label>
+              <div className="input-group input-group-sm">
+                <input type="number" step="0.001" min={0} className="form-control text-end" aria-label="규격 무게(g)" required
+                  value={form.specWeight} onChange={(e) => setForm({ ...form, specWeight: Number(e.target.value) })} />
+                <span className="input-group-text">g ×</span>
+                <input type="number" step="1" min={1} className="form-control text-end" aria-label="규격 입수(EA)" required
+                  value={form.specCount} onChange={(e) => setForm({ ...form, specCount: Number(e.target.value) })} />
+                <span className="input-group-text">EA</span>
+              </div>
             </div>
             <div className="col-6 col-md-2">
               <label className="form-label small">제품 당 무게(g)</label>
-              <input type="number" step="0.001" min={0} className="form-control form-control-sm text-end" value={form.unitWeight} required
-                onChange={(e) => setForm({ ...form, unitWeight: Number(e.target.value) })} />
+              <input className="form-control form-control-sm text-end bg-light" readOnly tabIndex={-1} aria-label="제품 당 무게(자동)"
+                value={fmtWeight((form.specWeight || 0) * (form.specCount || 0))} title="규격 g × EA 로 자동 계산됩니다" />
             </div>
-            <div className="col-6 col-md-2">
+            <div className="col-6 col-md-1">
               <label className="form-label small">판매가(원)</label>
               <input type="number" min={0} className="form-control form-control-sm text-end" value={form.salePrice} required
                 onChange={(e) => setForm({ ...form, salePrice: Number(e.target.value) })} />
             </div>
-            <div className="col-12 col-md-2 d-flex align-items-end">
+            <div className="col-12 col-md-1 d-flex align-items-end">
               <div className="form-check">
                 <input id="prd-active" type="checkbox" className="form-check-input" checked={form.active}
                   onChange={(e) => setForm({ ...form, active: e.target.checked })} />
@@ -115,7 +122,7 @@ export default function ProductsPage() {
                       <button className="btn btn-sm btn-link" onClick={() => {
                         setEditingId(p.id);
                         setEditingCode(p.code);
-                        setForm({ name: p.name, spec: p.spec, unitWeight: p.unitWeight, salePrice: p.salePrice, active: p.active });
+                        setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, salePrice: p.salePrice, active: p.active });
                         setError(null);
                         setNotice(null);
                       }}>수정</button>

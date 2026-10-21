@@ -34,8 +34,13 @@ export interface Product {
   id: number;
   code: string;
   name: string;
+  /** 규격 낱개 무게(g) */
+  specWeight: number;
+  /** 규격 입수(EA) */
+  specCount: number;
+  /** 규격 표시 문자열 (예: 20g × 10EA) */
   spec: string | null;
-  /** 제품 1개당 무게(g) */
+  /** 제품 1개당 무게(g) = specWeight × specCount */
   unitWeight: number;
   salePrice: number;
   active: boolean;
@@ -116,6 +121,12 @@ export interface CostSheetDetail {
   unitWeight: number;
   /** 총 생산량(kg) */
   totalOutput: number;
+  /** 원재료 손실률(%) */
+  rawLossRate: number;
+  /** 총 투입량(kg) = 총 생산량 ÷ (1 − 원재료 손실률%) */
+  totalInput: number;
+  /** 원자재 합계(손실 반영 전) */
+  rawSubtotal: number;
   salePrice: number;
   materialCost: number;
   packagingCost: number;
@@ -142,6 +153,7 @@ export interface CostSheetSaveRequest {
   title: string;
   productId: number;
   productionQty: number;
+  rawLossRate: number;
   salePrice: number;
   laborCost: number;
   overheadCost: number;

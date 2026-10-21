@@ -158,10 +158,10 @@ td, th { font-variant-numeric: tabular-nums; }
   .material-row > :nth-child(6) { grid-area: del; align-self: end; }
 }
 
-/* 배합표 행. 원자재: 자재 | 배합비 | 손실률 | 투입량 | 단가 | 금액 | 삭제
+/* 배합표 행. 원자재: 자재 | 배합비 | 투입량 | 단가 | 금액 | 삭제
              포장자재: 자재 | 투입량 | 손실률 | 단가 | 금액 | 삭제 */
 .bom-row { display: grid; gap: 6px; align-items: center; }
-.bom-raw { grid-template-columns: minmax(170px, 2fr) 90px 90px 1.3fr 1fr 1fr 36px; }
+.bom-raw { grid-template-columns: minmax(170px, 2fr) 100px 1.3fr 1fr 1fr 36px; }
 .bom-pack { grid-template-columns: minmax(170px, 2fr) 1.3fr 90px 1fr 1fr 36px; }
 .bom-head {
   font-size: .8rem;

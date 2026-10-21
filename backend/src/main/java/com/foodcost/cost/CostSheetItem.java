@@ -13,8 +13,8 @@ import java.math.RoundingMode;
 /**
  * 원가계산서의 배합(BOM) 품목. 자재명/단가는 작성 시점 값으로 보관한다.
  * <pre>
- * 원자재  : 투입량 = 총 생산량(kg) × 배합비% ÷ (1 − 손실률%)   ← 단위가 g 이면 × 1000
- *           금액   = 투입량 × 단가                            (손실은 투입량에 이미 반영)
+ * 원자재  : 투입량 = 총 생산량(kg) × 배합비%   ← 단위가 g 이면 × 1000
+ *           금액   = 투입량 × 단가               (손실은 원가계산서의 원재료 손실률로 합계에 반영)
  * 포장자재: 투입량 = 직접 입력
  *           금액   = 투입량 × 단가 × (1 + 손실률%)
  * </pre>
@@ -64,7 +64,7 @@ public class CostSheetItem {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal unitPrice;
 
-    /** 손실률(%) - 세척/가열/불량 등으로 인한 로스 */
+    /** 손실률(%) - 포장자재만 사용. 원자재는 원가계산서의 원재료 손실률을 쓰므로 0 */
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal lossRate;
 
@@ -74,10 +74,10 @@ public class CostSheetItem {
 
     /** 원자재 품목: 배합비로 투입량을 계산한다. */
     static CostSheetItem raw(CostSheet costSheet, int lineNo, Material material, BigDecimal ratio,
-                             BigDecimal unitPrice, BigDecimal lossRate, BigDecimal totalOutputKg) {
-        CostSheetItem item = new CostSheetItem(costSheet, lineNo, material, unitPrice, lossRate);
+                             BigDecimal unitPrice, BigDecimal totalOutputKg) {
+        CostSheetItem item = new CostSheetItem(costSheet, lineNo, material, unitPrice, BigDecimal.ZERO);
         item.ratio = ratio;
-        item.quantity = rawQuantity(totalOutputKg, ratio, lossRate, material.getUnit());
+        item.quantity = rawQuantity(totalOutputKg, ratio, material.getUnit());
         item.amount = item.quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
         return item;
     }
@@ -103,11 +103,9 @@ public class CostSheetItem {
         this.lossRate = lossRate;
     }
 
-    /** 총 생산량(kg) × 배합비% ÷ (1 − 손실률%). 자재 단위가 g 이면 g 으로 환산. 손실률은 100% 미만이어야 한다. */
-    static BigDecimal rawQuantity(BigDecimal totalOutputKg, BigDecimal ratio, BigDecimal lossRate, String unit) {
-        BigDecimal yield = BigDecimal.ONE.subtract(lossRate.divide(HUNDRED, 6, RoundingMode.HALF_UP));
-        BigDecimal kg = totalOutputKg.multiply(ratio).divide(HUNDRED, 10, RoundingMode.HALF_UP)
-                .divide(yield, 10, RoundingMode.HALF_UP);
+    /** 총 생산량(kg) × 배합비%. 자재 단위가 g 이면 g 으로 환산 */
+    static BigDecimal rawQuantity(BigDecimal totalOutputKg, BigDecimal ratio, String unit) {
+        BigDecimal kg = totalOutputKg.multiply(ratio).divide(HUNDRED, 10, RoundingMode.HALF_UP);
         BigDecimal qty = "g".equalsIgnoreCase(unit) ? kg.multiply(THOUSAND) : kg;
         return qty.setScale(4, RoundingMode.HALF_UP);
     }
