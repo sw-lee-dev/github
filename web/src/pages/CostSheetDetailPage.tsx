@@ -254,6 +254,15 @@ function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate }: 
               </tr>
             ))}
           </tbody>
+          {!raw && (
+            <tfoot className="table-light">
+              <tr className="fw-semibold">
+                <td>합계</td>
+                <td colSpan={3} />
+                <td className="text-end">{fmtWon(total)}</td>
+              </tr>
+            </tfoot>
+          )}
           {raw && (
             <tfoot className="table-light">
               <tr className="fw-semibold">

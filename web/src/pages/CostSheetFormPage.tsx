@@ -485,10 +485,18 @@ export default function CostSheetFormPage() {
                 </div>
               ))}
             </div>
-            <div className="d-flex justify-content-end mt-2 small">
-              <span>포장자재 합계 <strong>{fmtWon(packagingCost)}</strong>원</span>
+            {/* 합계 행: 열 위치를 위 입력 행과 맞춘다 (투입량은 자재마다 단위가 달라 합하지 않음) */}
+            <div className="bom-row bom-pack bom-total" data-testid="pack-total-row">
+              <div className="bom-cell bom-material fw-semibold">합계</div>
+              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell text-end fw-semibold">
+                <span className="cell-label">금액(원)</span>
+                <span data-testid="pack-cost">{fmtWon(packagingCost)}</span>
+              </div>
+              <div className="d-none d-md-block" />
             </div>
-            <div className="form-text">금액 = 투입량 × 단가 × (1 + 손실률%). 단가는 자재 기준단가가 자동으로 들어가며 수정할 수 있습니다.</div>
           </section>
         </div>
       </div>
