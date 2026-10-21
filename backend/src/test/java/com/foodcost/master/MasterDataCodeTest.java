@@ -74,12 +74,16 @@ class MasterDataCodeTest {
 
     @Test
     @WithMockUser(roles = "WRITER")
-    void 규격_무게는_정수만_허용() throws Exception {
+    void 규격_무게와_입수는_정수만_허용() throws Exception {
         String body = "{\"name\":\"소수무게\",\"specWeight\":12.5,\"specCount\":2,\"salePrice\":1000}";
         var res = mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andReturn().getResponse();
         assertThat(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
                 .contains("규격의 무게(g)는 정수만 입력할 수 있습니다.");
+        // 입수(EA)도 정수만: 소수를 잘라 저장하지 않고 거부
+        mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON)
+                        .content(body.replace("12.5", "12").replace("\"specCount\":2", "\"specCount\":2.5")))
+                .andExpect(status().isBadRequest());
         mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON)
                         .content(body.replace("12.5", "12")))
                 .andExpect(status().isCreated())

@@ -1,10 +1,25 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { api, type ProductPayload } from '../api/client';
 import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
 import { fmtInt } from '../utils/format';
+
+/** 규격(g, EA) 입력칸: 정수만. 소수점·부호·지수 키는 막고, 붙여넣은 소수는 소수점 아래를 버린다 */
+const intInput = {
+  type: 'number',
+  step: 1,
+  min: 1,
+  inputMode: 'numeric',
+  required: true,
+  title: '정수만 입력할 수 있습니다',
+  className: 'form-control text-end',
+  onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => {
+    if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+  },
+} as const;
+const toInt = (v: string) => Math.max(0, Math.trunc(Number(v) || 0));
 
 const EMPTY: ProductPayload = { name: '', specWeight: 0, specCount: 1, salePrice: 0, active: true };
 
@@ -66,13 +81,11 @@ export default function ProductsPage() {
             <div className="col-12 col-md-3">
               <label className="form-label small">규격 (무게 × 입수)</label>
               <div className="input-group input-group-sm">
-                <input type="number" step="1" min={1} inputMode="numeric" className="form-control text-end" aria-label="규격 무게(g)" required
-                  title="정수만 입력할 수 있습니다" value={form.specWeight || ''}
-                  onKeyDown={(e) => { if (['.', ',', 'e', 'E', '+', '-'].includes(e.key)) e.preventDefault(); }}
-                  onChange={(e) => setForm({ ...form, specWeight: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })} />
+                <input {...intInput} aria-label="규격 무게(g)" value={form.specWeight || ''}
+                  onChange={(e) => setForm({ ...form, specWeight: toInt(e.target.value) })} />
                 <span className="input-group-text">g</span>
-                <input type="number" step="1" min={1} className="form-control text-end" aria-label="규격 입수(EA)" required
-                  value={form.specCount} onChange={(e) => setForm({ ...form, specCount: Number(e.target.value) })} />
+                <input {...intInput} aria-label="규격 입수(EA)" value={form.specCount || ''}
+                  onChange={(e) => setForm({ ...form, specCount: toInt(e.target.value) })} />
                 <span className="input-group-text">EA</span>
               </div>
             </div>

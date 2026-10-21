@@ -5,6 +5,10 @@ server:
 spring:
   application:
     name: food-cost-approval
+  jackson:
+    deserialization:
+      # 정수 항목(입수 EA, 생산수량 등)에 2.5 같은 소수가 오면 잘라내지 않고 400 으로 거부
+      accept-float-as-int: false
   datasource:
     url: jdbc:h2:mem:foodcost;MODE=MySQL;DB_CLOSE_DELAY=-1
     username: sa
