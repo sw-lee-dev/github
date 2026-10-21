@@ -119,7 +119,7 @@ export default function ProductsPage() {
           <table className="table table-hover table-sm align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>코드</th><th>제품명</th><th>규격</th><th className="text-end">제품 당 무게(g)</th><th className="text-end">판매가(원)</th><th>판매</th>
+                <th>코드</th><th>제품명</th><th>규격</th><th className="text-end">제품 당 무게(g)</th><th className="text-end">판매가(원)</th><th className="text-center">판매여부</th>
                 {editable && <th />}
               </tr>
             </thead>
@@ -131,7 +131,7 @@ export default function ProductsPage() {
                   <td>{p.spec ?? '-'}</td>
                   <td className="text-end">{fmtInt(p.unitWeight)}</td>
                   <td className="text-end">{fmtInt(p.salePrice)}</td>
-                  <td>{p.active ? 'Y' : 'N'}</td>
+                  <td className="text-center">{p.active ? 'Y' : 'N'}</td>
                   {editable && (
                     <td className="text-end">
                       <button className="btn btn-sm btn-link" onClick={() => {

@@ -239,7 +239,7 @@ export default function MaterialsPage() {
           <table className="table table-hover table-sm align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>코드</th><th>자재명</th><th>구분</th><th>단위</th><th className="text-end">단가(원)</th><th>사용</th>
+                <th>코드</th><th>자재명</th><th>구분</th><th>단위</th><th className="text-end">단가(원)</th><th className="text-center">사용여부</th>
                 {editable && <th />}
               </tr>
             </thead>
@@ -251,7 +251,7 @@ export default function MaterialsPage() {
                   <td><span className={`badge ${m.type === 'RAW' ? 'bar-raw' : 'bar-pack'}`}>{m.typeLabel}</span></td>
                   <td>{m.unit}</td>
                   <td className="text-end">{fmtWon(m.unitPrice)}</td>
-                  <td>{m.active ? 'Y' : 'N'}</td>
+                  <td className="text-center">{m.active ? 'Y' : 'N'}</td>
                   {editable && (
                     <td className="text-end">
                       <button className="btn btn-sm btn-link" onClick={() => openEdit(m)}>수정</button>
