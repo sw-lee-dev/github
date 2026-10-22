@@ -64,6 +64,14 @@ public class CostSheetService {
                 .stream().map(Summary::from).toList();
     }
 
+    /** 제품 판매가 이력 (원가계산서 최종 승인 시 책정된 승인 판매가) */
+    public List<PriceHistory> priceHistory(Long productId) {
+        if (!productRepository.existsById(productId)) {
+            throw ApiException.notFound("제품을 찾을 수 없습니다.");
+        }
+        return costSheetRepository.findApprovedByProduct(productId).stream().map(PriceHistory::from).toList();
+    }
+
     public InboxCount inboxCount(AuthUser user) {
         return new InboxCount(costSheetRepository.findByApproverStep(user.id(), List.of(StepStatus.PENDING)).size());
     }

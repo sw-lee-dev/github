@@ -231,6 +231,26 @@ class CostSheetFlowTest {
         JsonNode products = json(mvc.perform(get("/api/products").header("Authorization", writer)));
         assertThat(products.get(0).get("code").asText()).isEqualTo("FG-0001");
         assertThat(products.get(0).get("salePrice").decimalValue()).isEqualByComparingTo("2700");
+
+        // 판매가 이력: 승인일시 최신순 (이번 2700, 샘플 1번 문서 4500)
+        JsonNode history = json(mvc.perform(get("/api/products/1/price-history").header("Authorization", writer))
+                .andExpect(status().isOk()));
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).get("costSheetId").asLong()).isEqualTo(id);
+        assertThat(history.get(0).get("productName").asText()).isEqualTo("버터쿠키");
+        assertThat(history.get(0).get("salePrice").decimalValue()).isEqualByComparingTo("2700");
+        assertThat(history.get(0).get("approvedAt").asText()).isNotBlank();
+        assertThat(history.get(1).get("salePrice").decimalValue()).isEqualByComparingTo("4500");
+    }
+
+    @Test
+    void 승인된_원가계산서가_없는_제품은_판매가_이력이_비어있다() throws Exception {
+        String writer = login("writer");
+        JsonNode history = json(mvc.perform(get("/api/products/2/price-history").header("Authorization", writer))
+                .andExpect(status().isOk()));
+        assertThat(history).isEmpty();
+        mvc.perform(get("/api/products/999/price-history").header("Authorization", writer))
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -281,7 +301,7 @@ class CostSheetFlowTest {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"테스트\",\"specWeight\":100,\"specCount\":1,\"salePrice\":1000}"))
+                        .content("{\"name\":\"테스트\",\"specWeight\":100,\"specCount\":1}"))
                 .andExpect(status().isForbidden());
     }
 

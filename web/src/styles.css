@@ -209,3 +209,7 @@ td, th { font-variant-numeric: tabular-nums; }
 @media (max-width: 767.98px) {
   .bom-total { background: var(--bs-light); }
 }
+
+/* 제품명 링크 (판매가가 책정된 제품만): 판매가 이력 팝업 열기 */
+.product-link { color: var(--brand); text-decoration: none; font-size: inherit; }
+.product-link:hover { color: var(--brand-dark); text-decoration: underline; }

@@ -42,8 +42,19 @@ export interface Product {
   spec: string | null;
   /** 제품 1개당 무게(g) = specWeight × specCount */
   unitWeight: number;
-  salePrice: number;
+  /** 기준 판매가. 원가계산서가 처음 최종 승인되기 전에는 null */
+  salePrice: number | null;
   active: boolean;
+}
+
+/** 제품 판매가 이력 한 줄 = 최종 승인된 원가계산서 한 건 */
+export interface PriceHistory {
+  costSheetId: number;
+  docNo: string;
+  productCode: string;
+  productName: string;
+  salePrice: number;
+  approvedAt: string;
 }
 
 export interface CostSheetSummary {

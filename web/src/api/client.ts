@@ -6,6 +6,7 @@ import type {
   LoginResponse,
   Material,
   MaterialType,
+  PriceHistory,
   Product,
   User,
 } from './types';
@@ -75,14 +76,13 @@ export interface MaterialPayload {
   active: boolean;
 }
 
-/** 제품코드는 서버가 자동 채번(FG-0001)하므로 보내지 않는다. */
+/** 제품코드는 서버가 자동 채번(FG-0001)하고, 판매가는 원가계산서 최종 승인으로만 정해지므로 보내지 않는다. */
 export interface ProductPayload {
   name: string;
   /** 규격 낱개 무게(g). 규격 문자열과 제품 당 무게는 서버가 만든다 */
   specWeight: number;
   /** 규격 입수(EA) */
   specCount: number;
-  salePrice: number;
   active: boolean;
 }
 
@@ -99,6 +99,7 @@ export const api = {
   products: () => request<Product[]>('GET', '/api/products'),
   createProduct: (p: ProductPayload) => request<Product>('POST', '/api/products', p),
   updateProduct: (id: number, p: ProductPayload) => request<Product>('PUT', `/api/products/${id}`, p),
+  priceHistory: (productId: number) => request<PriceHistory[]>('GET', `/api/products/${productId}/price-history`),
 
   costSheets: (scope: 'mine' | 'all', status?: CostStatus) => {
     const q = new URLSearchParams({ scope });

@@ -41,24 +41,23 @@ public class Product extends BaseTimeEntity {
     @Column(nullable = false, precision = 12, scale = 3)
     private BigDecimal unitWeight;
 
-    /** 기준 판매가(원, 개당) */
-    @Column(nullable = false, precision = 15, scale = 2)
+    /** 기준 판매가(원, 개당). 등록 시에는 비어 있고, 원가계산서가 최종 승인될 때 책정된다 */
+    @Column(precision = 15, scale = 2)
     private BigDecimal salePrice;
 
     @Column(nullable = false)
     private boolean active = true;
 
     @Builder
-    private Product(String code, String name, BigDecimal specWeight, int specCount, BigDecimal salePrice) {
+    private Product(String code, String name, BigDecimal specWeight, int specCount) {
         this.code = code;
         this.name = name;
-        this.salePrice = salePrice;
         applySpec(specWeight, specCount);
     }
 
-    public void update(String name, BigDecimal specWeight, int specCount, BigDecimal salePrice, boolean active) {
+    /** 판매가는 결재로만 바뀌므로 여기서 받지 않는다 */
+    public void update(String name, BigDecimal specWeight, int specCount, boolean active) {
         this.name = name;
-        this.salePrice = salePrice;
         this.active = active;
         applySpec(specWeight, specCount);
     }

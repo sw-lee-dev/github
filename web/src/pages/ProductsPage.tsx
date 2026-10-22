@@ -1,8 +1,9 @@
-import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { api, type ProductPayload } from '../api/client';
 import type { Product } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
+import PriceHistoryModal from '../components/PriceHistoryModal';
 import { PRODUCT_CODE_PREFIX, nextCode } from '../utils/code';
 import { fmtInt } from '../utils/format';
 
@@ -21,7 +22,7 @@ const intInput = {
 } as const;
 const toInt = (v: string) => Math.max(0, Math.trunc(Number(v) || 0));
 
-const EMPTY: ProductPayload = { name: '', specWeight: 0, specCount: 1, salePrice: 0, active: true };
+const EMPTY: ProductPayload = { name: '', specWeight: 0, specCount: 1, active: true };
 
 export default function ProductsPage() {
   const { user } = useAuth();
@@ -30,6 +31,10 @@ export default function ProductsPage() {
   const [form, setForm] = useState<ProductPayload | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingCode, setEditingCode] = useState<string>('');
+  /** 수정 중인 제품의 판매가 (읽기 전용 표시용) */
+  const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  const [historyOf, setHistoryOf] = useState<Product | null>(null);
+  const closeHistory = useCallback(() => setHistoryOf(null), []);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -55,7 +60,7 @@ export default function ProductsPage() {
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 className="h4 mb-0">제품</h1>
         {editable && !form && (
-          <button className="btn btn-brand" onClick={() => { setEditingId(null); setForm({ ...EMPTY }); setError(null); setNotice(null); }}>
+          <button className="btn btn-brand" onClick={() => { setEditingId(null); setEditingPrice(null); setForm({ ...EMPTY }); setError(null); setNotice(null); }}>
             <i className="bi bi-plus-lg me-1" />제품 등록
           </button>
         )}
@@ -96,8 +101,9 @@ export default function ProductsPage() {
             </div>
             <div className="col-6 col-md-1">
               <label className="form-label small">판매가(원)</label>
-              <input type="number" min={0} className="form-control form-control-sm text-end" value={form.salePrice} required
-                onChange={(e) => setForm({ ...form, salePrice: Number(e.target.value) })} />
+              <input className="form-control form-control-sm text-end bg-light" readOnly tabIndex={-1} aria-label="판매가(결재 승인 시 책정)"
+                value={editingId && editingPrice != null ? fmtInt(editingPrice) : ''}
+                title="판매가는 원가계산서가 최종 승인되면 책정됩니다" />
             </div>
             <div className="col-12 col-md-1 d-flex align-items-end">
               <div className="form-check">
@@ -116,7 +122,7 @@ export default function ProductsPage() {
 
       {!rows ? <Loading /> : (
         <div className="table-responsive bg-white border rounded">
-          <table className="table table-hover table-sm align-middle mb-0">
+          <table className="table table-sm align-middle mb-0">
             <thead className="table-light">
               <tr>
                 <th>코드</th><th>제품명</th><th>규격</th><th className="text-end">제품 당 무게(g)</th><th className="text-end">판매가(원)</th><th className="text-center">판매여부</th>
@@ -127,7 +133,14 @@ export default function ProductsPage() {
               {rows.map((p) => (
                 <tr key={p.id} className={p.active ? '' : 'text-muted'}>
                   <td>{p.code}</td>
-                  <td>{p.name}</td>
+                  <td>
+                    {/* 판매가가 책정된 제품만 이름을 눌러 판매가 이력을 본다 */}
+                    {p.salePrice != null ? (
+                      <button type="button" className="btn btn-link p-0 align-baseline product-link" onClick={() => setHistoryOf(p)}>
+                        {p.name}
+                      </button>
+                    ) : p.name}
+                  </td>
                   <td>{p.spec ?? '-'}</td>
                   <td className="text-end">{fmtInt(p.unitWeight)}</td>
                   <td className="text-end">{fmtInt(p.salePrice)}</td>
@@ -137,7 +150,8 @@ export default function ProductsPage() {
                       <button className="btn btn-sm btn-link" onClick={() => {
                         setEditingId(p.id);
                         setEditingCode(p.code);
-                        setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, salePrice: p.salePrice, active: p.active });
+                        setEditingPrice(p.salePrice);
+                        setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, active: p.active });
                         setError(null);
                         setNotice(null);
                       }}>수정</button>
@@ -149,6 +163,7 @@ export default function ProductsPage() {
           </table>
         </div>
       )}
+      {historyOf && <PriceHistoryModal product={historyOf} onClose={closeHistory} />}
     </>
   );
 }

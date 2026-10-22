@@ -70,7 +70,7 @@ public class MasterDataService {
     public ProductResponse createProduct(ProductRequest req) {
         String code = CodeSequence.next(PRODUCT_CODE_PREFIX, productRepository.findCodesByPrefix(PRODUCT_CODE_PREFIX));
         Product product = Product.builder()
-                .code(code).name(req.name()).specWeight(req.specWeight()).specCount(req.specCount()).salePrice(req.salePrice())
+                .code(code).name(req.name()).specWeight(req.specWeight()).specCount(req.specCount())
                 .build();
         return ProductResponse.from(productRepository.save(product));
     }
@@ -79,7 +79,7 @@ public class MasterDataService {
     public ProductResponse updateProduct(Long id, ProductRequest req) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다."));
-        product.update(req.name(), req.specWeight(), req.specCount(), req.salePrice(), req.active() == null || req.active());
+        product.update(req.name(), req.specWeight(), req.specCount(), req.active() == null || req.active());
         return ProductResponse.from(product);
     }
 }

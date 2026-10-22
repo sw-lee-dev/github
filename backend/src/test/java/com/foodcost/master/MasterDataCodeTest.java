@@ -20,6 +20,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -55,7 +56,7 @@ class MasterDataCodeTest {
     @Test
     void 제품_수정으로_코드는_바뀌지_않는다() {
         ProductResponse created = service.createProduct(product("신제품"));
-        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", BigDecimal.valueOf(250), 4, BigDecimal.TEN, true));
+        ProductResponse updated = service.updateProduct(created.id(), new ProductRequest("이름변경", BigDecimal.valueOf(250), 4, true));
         assertThat(updated.code()).isEqualTo(created.code());
         assertThat(updated.name()).isEqualTo("이름변경");
         assertThat(updated.spec()).isEqualTo("250g × 4EA");
@@ -63,8 +64,34 @@ class MasterDataCodeTest {
     }
 
     @Test
+    void 샘플_제품_판매가는_승인된_원가계산서가_있는_제품만_책정된다() {
+        List<ProductResponse> products = service.products();
+        assertThat(products.get(0).salePrice()).isEqualByComparingTo("4500");
+        assertThat(products.get(1).salePrice()).isNull();
+        assertThat(products.get(2).salePrice()).isNull();
+    }
+
+    @Test
+    @WithMockUser(roles = "WRITER")
+    void 제품_등록_수정으로는_판매가를_정할_수_없다() throws Exception {
+        String body = "{\"name\":\"판매가무시\",\"specWeight\":10,\"specCount\":1,\"salePrice\":1000}";
+        var res = mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.salePrice").isEmpty())
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+        long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(res).get("id").asLong();
+        // 승인으로 책정된 FG-0001 판매가(4500)도 수정 요청으로는 바뀌지 않는다
+        mvc.perform(put("/api/products/1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"버터쿠키\",\"specWeight\":20,\"specCount\":10,\"salePrice\":1}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.salePrice").value(4500));
+        mvc.perform(put("/api/products/" + id).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(jsonPath("$.salePrice").isEmpty());
+    }
+
+    @Test
     void 규격은_g_x_EA_로_저장되고_제품_당_무게가_자동_계산된다() {
-        ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", BigDecimal.valueOf(25), 8, BigDecimal.valueOf(3000), true));
+        ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", BigDecimal.valueOf(25), 8, true));
         assertThat(p.spec()).isEqualTo("25g × 8EA");
         assertThat(p.specWeight()).isEqualByComparingTo("25");
         assertThat(p.specCount()).isEqualTo(8);
@@ -75,7 +102,7 @@ class MasterDataCodeTest {
     @Test
     @WithMockUser(roles = "WRITER")
     void 규격_무게와_입수는_정수만_허용() throws Exception {
-        String body = "{\"name\":\"소수무게\",\"specWeight\":12.5,\"specCount\":2,\"salePrice\":1000}";
+        String body = "{\"name\":\"소수무게\",\"specWeight\":12.5,\"specCount\":2}";
         var res = mvc.perform(post("/api/products").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest()).andReturn().getResponse();
         assertThat(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8))
@@ -128,7 +155,7 @@ class MasterDataCodeTest {
     }
 
     private static ProductRequest product(String name) {
-        return new ProductRequest(name, BigDecimal.valueOf(100), 1, BigDecimal.valueOf(1000), true);
+        return new ProductRequest(name, BigDecimal.valueOf(100), 1, true);
     }
 
     private static MaterialRequest material(String name, MaterialType type) {

@@ -98,12 +98,12 @@ public class DataInitializer implements ApplicationRunner {
         return new MaterialRequest(name, type, unit, BigDecimal.valueOf(price), true);
     }
 
-    /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003 */
+    /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003. 판매가는 비어 있다가 원가계산서 최종 승인 시 책정 */
     private Map<String, Long> createProducts() {
         return List.of(
-                        new ProductRequest("버터쿠키", bd(20), 10, bd(4_500), true),
-                        new ProductRequest("초코칩쿠키", bd(20), 9, bd(4_800), true),
-                        new ProductRequest("우유식빵", bd(400), 1, bd(3_900), true))
+                        new ProductRequest("버터쿠키", bd(20), 10, true),
+                        new ProductRequest("초코칩쿠키", bd(20), 9, true),
+                        new ProductRequest("우유식빵", bd(400), 1, true))
                 .stream()
                 .map(masterDataService::createProduct)
                 .collect(Collectors.toMap(r -> r.code(), r -> r.id()));

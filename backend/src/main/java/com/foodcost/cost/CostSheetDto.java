@@ -188,6 +188,15 @@ public final class CostSheetDto {
         }
     }
 
+    /** 제품 판매가 이력 한 줄 = 최종 승인된 원가계산서 한 건 */
+    public record PriceHistory(Long costSheetId, String docNo, String productCode, String productName,
+                               BigDecimal salePrice, LocalDateTime approvedAt) {
+        public static PriceHistory from(CostSheet s) {
+            return new PriceHistory(s.getId(), s.getDocNo(), s.getProduct().getCode(), s.getProduct().getName(),
+                    s.getApprovedSalePrice(), s.getCompletedAt());
+        }
+    }
+
     public record InboxCount(long pending) {
     }
 }

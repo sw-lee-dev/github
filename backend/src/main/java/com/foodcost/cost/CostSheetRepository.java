@@ -23,6 +23,16 @@ public interface CostSheetRepository extends JpaRepository<CostSheet, Long> {
             """)
     List<CostSheet> search(@Param("writerId") Long writerId, @Param("status") CostStatus status);
 
+    /** 제품의 판매가 이력: 최종 승인된 문서를 승인일시 최신순으로 */
+    @Query("""
+            select s from CostSheet s
+              join fetch s.product
+             where s.product.id = :productId
+               and s.status = com.foodcost.cost.CostStatus.APPROVED
+             order by s.completedAt desc, s.id desc
+            """)
+    List<CostSheet> findApprovedByProduct(@Param("productId") Long productId);
+
     /** 특정 결재자의 단계 상태로 문서 조회 (결재함) */
     @Query("""
             select distinct s from CostSheet s

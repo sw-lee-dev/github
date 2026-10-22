@@ -134,7 +134,8 @@ export default function CostSheetFormPage() {
     setProductId(value);
     const prod = products.find((x) => x.id === Number(value));
     if (prod) {
-      setSalePrice(String(prod.salePrice));
+      // 판매가가 아직 책정되지 않은 제품(승인 이력 없음)은 비워 두고 작성자가 입력
+      setSalePrice(prod.salePrice == null ? '' : String(prod.salePrice));
       if (!title.trim()) setTitle(`${prod.name} 제조원가`);
     }
   };
