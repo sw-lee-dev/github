@@ -33,6 +33,8 @@ export default function ProductsPage() {
   const [editingCode, setEditingCode] = useState<string>('');
   /** 수정 중인 제품의 판매가 (읽기 전용 표시용) */
   const [editingPrice, setEditingPrice] = useState<number | null>(null);
+  /** 판매가가 책정된 제품: 판매여부만 바꿀 수 있는 수정창 */
+  const [activeOnly, setActiveOnly] = useState(false);
   const [historyOf, setHistoryOf] = useState<Product | null>(null);
   const closeHistory = useCallback(() => setHistoryOf(null), []);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +48,9 @@ export default function ProductsPage() {
     if (!form) return;
     try {
       const body = form;
-      const saved = editingId ? await api.updateProduct(editingId, body) : await api.createProduct(body);
+      const saved = editingId && activeOnly
+        ? await api.changeProductActive(editingId, form.active)
+        : editingId ? await api.updateProduct(editingId, body) : await api.createProduct(body);
       setNotice(`${saved.code} ${saved.name} ${editingId ? '수정' : '등록'} 완료`);
       setForm(null);
       load();
@@ -55,12 +59,25 @@ export default function ProductsPage() {
     }
   };
 
+  // 판매여부만 수정할 때 규격 입력칸은 읽기 전용
+  const lockProps = activeOnly ? { readOnly: true, tabIndex: -1, className: `${intInput.className} bg-light` } : {};
+
+  const openEdit = (p: Product, onlyActive: boolean) => {
+    setEditingId(p.id);
+    setEditingCode(p.code);
+    setEditingPrice(p.salePrice);
+    setActiveOnly(onlyActive);
+    setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, active: p.active });
+    setError(null);
+    setNotice(null);
+  };
+
   return (
     <>
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h1 className="h4 mb-0">제품</h1>
         {editable && !form && (
-          <button className="btn btn-brand" onClick={() => { setEditingId(null); setEditingPrice(null); setForm({ ...EMPTY }); setError(null); setNotice(null); }}>
+          <button className="btn btn-brand" onClick={() => { setEditingId(null); setEditingPrice(null); setActiveOnly(false); setForm({ ...EMPTY }); setError(null); setNotice(null); }}>
             <i className="bi bi-plus-lg me-1" />제품 등록
           </button>
         )}
@@ -70,7 +87,10 @@ export default function ProductsPage() {
 
       {form && (
         <form className="card shadow-sm mb-3" onSubmit={save}>
-          <div className="card-header bg-white fw-semibold">{editingId ? '제품 수정' : '제품 등록'}</div>
+          <div className="card-header bg-white fw-semibold">
+            {editingId ? '제품 수정' : '제품 등록'}
+            {activeOnly && <span className="small text-muted fw-normal ms-2">판매가가 책정된 제품은 판매여부만 변경할 수 있습니다</span>}
+          </div>
           <div className="card-body row g-2">
             <div className="col-6 col-md-2">
               <label className="form-label small">제품코드</label>
@@ -80,16 +100,17 @@ export default function ProductsPage() {
             </div>
             <div className="col-6 col-md-2">
               <label className="form-label small">제품명</label>
-              <input className="form-control form-control-sm" value={form.name} required
+              <input className={`form-control form-control-sm ${activeOnly ? 'bg-light' : ''}`} value={form.name} required
+                readOnly={activeOnly} tabIndex={activeOnly ? -1 : undefined}
                 onChange={(e) => setForm({ ...form, name: e.target.value })} />
             </div>
             <div className="col-12 col-md-3">
               <label className="form-label small">규격 (무게 × 입수)</label>
               <div className="input-group input-group-sm">
-                <input {...intInput} aria-label="규격 무게(g)" value={form.specWeight || ''}
+                <input {...intInput} {...lockProps} aria-label="규격 무게(g)" value={form.specWeight || ''}
                   onChange={(e) => setForm({ ...form, specWeight: toInt(e.target.value) })} />
                 <span className="input-group-text">g</span>
-                <input {...intInput} aria-label="규격 입수(EA)" value={form.specCount || ''}
+                <input {...intInput} {...lockProps} aria-label="규격 입수(EA)" value={form.specCount || ''}
                   onChange={(e) => setForm({ ...form, specCount: toInt(e.target.value) })} />
                 <span className="input-group-text">EA</span>
               </div>
@@ -144,21 +165,22 @@ export default function ProductsPage() {
                   <td>{p.spec ?? '-'}</td>
                   <td className="text-end">{fmtInt(p.unitWeight)}</td>
                   <td className="text-end">{fmtInt(p.salePrice)}</td>
-                  <td className="text-center">{p.active ? 'Y' : 'N'}</td>
+                  <td className="text-center">
+                    {/* 판매가가 책정된 제품은 판매여부를 눌러 판매여부만 수정 */}
+                    {editable && p.salePrice != null ? (
+                      <button type="button" className="btn btn-link p-0 align-baseline product-link" title="판매여부 변경"
+                        onClick={() => openEdit(p, true)}>
+                        {p.active ? 'Y' : 'N'}
+                      </button>
+                    ) : p.active ? 'Y' : 'N'}
+                  </td>
                   {editable && (
                     <td className="text-end text-nowrap">
                       {!p.editable ? (
                         <span className="small text-muted px-2" title={p.lockReason ?? undefined} data-testid="product-locked">
                           <i className="bi bi-lock me-1" />수정불가
                         </span>
-                      ) : <button className="btn btn-sm btn-link" onClick={() => {
-                        setEditingId(p.id);
-                        setEditingCode(p.code);
-                        setEditingPrice(p.salePrice);
-                        setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, active: p.active });
-                        setError(null);
-                        setNotice(null);
-                      }}>수정</button>}
+                      ) : <button className="btn btn-sm btn-link" onClick={() => openEdit(p, false)}>수정</button>}
                     </td>
                   )}
                 </tr>

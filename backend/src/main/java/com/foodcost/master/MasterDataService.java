@@ -90,4 +90,16 @@ public class MasterDataService {
         product.update(req.name(), req.specWeight(), req.specCount(), req.active() == null || req.active());
         return ProductResponse.from(product, false);
     }
+
+    /** 판매가가 책정된 제품은 다른 항목은 잠기지만 판매여부(단종 등)는 바꿀 수 있다 */
+    @Transactional
+    public ProductResponse changeProductActive(Long id, boolean active) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다."));
+        if (product.getSalePrice() == null) {
+            throw ApiException.badRequest("판매여부만 따로 변경하는 것은 판매가가 책정된 제품만 가능합니다.");
+        }
+        product.changeActive(active);
+        return ProductResponse.from(product, productApprovalStatus.productIdsInApproval().contains(id));
+    }
 }

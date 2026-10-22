@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -97,6 +98,29 @@ class MasterDataCodeTest {
                         .content("{\"name\":\"이름변경\",\"specWeight\":20,\"specCount\":10}"))
                 .andExpect(status().isBadRequest()).andReturn().getResponse();
         assertThat(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("판매가가 책정된 제품은 수정할 수 없습니다.");
+    }
+
+    @Test
+    @WithMockUser(roles = "WRITER")
+    void 판매가가_책정된_제품은_판매여부만_변경할_수_있다() throws Exception {
+        mvc.perform(patch("/api/products/1/active").contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.active").value(false))
+                .andExpect(jsonPath("$.name").value("버터쿠키"))
+                .andExpect(jsonPath("$.editable").value(false));
+        // 판매가가 없는 제품(FG-0002 결재중, FG-0003)은 판매여부만 따로 바꿀 수 없다
+        for (int id : new int[]{2, 3}) {
+            mvc.perform(patch("/api/products/" + id + "/active").contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
+                    .andExpect(status().isBadRequest());
+        }
+        assertThat(service.products()).extracting(ProductResponse::active).containsExactly(false, true, true);
+    }
+
+    @Test
+    @WithMockUser(roles = "APPROVER")
+    void 결재권자는_판매여부를_바꿀_수_없다() throws Exception {
+        mvc.perform(patch("/api/products/1/active").contentType(MediaType.APPLICATION_JSON).content("{\"active\":false}"))
+                .andExpect(status().isForbidden());
     }
 
     @Test

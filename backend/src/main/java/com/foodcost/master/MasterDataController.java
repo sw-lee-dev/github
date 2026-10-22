@@ -58,4 +58,10 @@ public class MasterDataController {
     public ProductResponse updateProduct(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
         return masterDataService.updateProduct(id, request);
     }
+
+    @PatchMapping("/products/{id}/active")
+    @PreAuthorize("hasAnyRole('ADMIN','WRITER')")
+    public ProductResponse changeProductActive(@PathVariable Long id, @Valid @RequestBody ProductActiveRequest request) {
+        return masterDataService.changeProductActive(id, request.active());
+    }
 }

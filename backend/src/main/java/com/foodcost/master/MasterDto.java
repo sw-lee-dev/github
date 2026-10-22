@@ -58,6 +58,10 @@ public final class MasterDto {
     ) {
     }
 
+    /** 판매가가 책정된(수정이 잠긴) 제품의 판매여부만 변경 */
+    public record ProductActiveRequest(@NotNull(message = "판매여부를 선택하세요.") Boolean active) {
+    }
+
     /** editable/lockReason: 최초 상신 후(반려·회수 전) 또는 판매가 책정 후에는 수정 불가 */
     public record ProductResponse(Long id, String code, String name, BigDecimal specWeight, int specCount,
                                   String spec, BigDecimal unitWeight, BigDecimal salePrice, boolean active,

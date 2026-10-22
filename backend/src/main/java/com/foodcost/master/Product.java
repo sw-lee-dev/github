@@ -74,6 +74,11 @@ public class Product extends BaseTimeEntity {
         applySpec(specWeight, specCount);
     }
 
+    /** 판매여부. 판매가가 책정돼 수정이 잠긴 제품도 이것만은 바꿀 수 있다 */
+    public void changeActive(boolean active) {
+        this.active = active;
+    }
+
     /** 원가계산서 최종 승인 시 승인 판매가로 기준 판매가를 바꾼다 */
     public void changeSalePrice(BigDecimal salePrice) {
         this.salePrice = salePrice;

@@ -99,6 +99,8 @@ export const api = {
   products: () => request<Product[]>('GET', '/api/products'),
   createProduct: (p: ProductPayload) => request<Product>('POST', '/api/products', p),
   updateProduct: (id: number, p: ProductPayload) => request<Product>('PUT', `/api/products/${id}`, p),
+  /** 판매가가 책정된(수정이 잠긴) 제품의 판매여부만 변경 */
+  changeProductActive: (id: number, active: boolean) => request<Product>('PATCH', `/api/products/${id}/active`, { active }),
   priceHistory: (productId: number) => request<PriceHistory[]>('GET', `/api/products/${productId}/price-history`),
 
   costSheets: (scope: 'mine' | 'all', status?: CostStatus) => {
