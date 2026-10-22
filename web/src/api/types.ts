@@ -45,6 +45,10 @@ export interface Product {
   /** 기준 판매가. 원가계산서가 처음 최종 승인되기 전에는 null */
   salePrice: number | null;
   active: boolean;
+  /** 최초 상신 후(반려·회수 전) 또는 판매가 책정 후에는 false */
+  editable: boolean;
+  /** 수정할 수 없는 이유. 수정 가능하면 null */
+  lockReason: string | null;
 }
 
 /** 제품 판매가 이력 한 줄 = 최종 승인된 원가계산서 한 건 */

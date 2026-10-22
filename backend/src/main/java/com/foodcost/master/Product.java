@@ -55,6 +55,18 @@ public class Product extends BaseTimeEntity {
         applySpec(specWeight, specCount);
     }
 
+    /**
+     * 수정할 수 없는 이유. 수정 가능하면 null.
+     * 판매가가 책정되면(최초 승인 이후) 영구히 잠기고, 그 전에는 결재중인 원가계산서가 있는 동안만 잠긴다
+     * (최초 상신이 반려·회수되면 다시 수정 가능).
+     */
+    public String lockReason(boolean inApproval) {
+        if (salePrice != null) {
+            return "판매가가 책정된 제품은 수정할 수 없습니다.";
+        }
+        return inApproval ? "결재 진행 중인 원가계산서가 있어 수정할 수 없습니다." : null;
+    }
+
     /** 판매가는 결재로만 바뀌므로 여기서 받지 않는다 */
     public void update(String name, BigDecimal specWeight, int specCount, boolean active) {
         this.name = name;

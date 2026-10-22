@@ -93,6 +93,8 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 - **결재함**: 내 차례인 문서, 내가 처리한 문서. 상단 메뉴에 대기 건수 표시
 - **기준정보**: 원재료·포장재 단가, 제품 관리 (원가담당/관리자만 수정)
   - 제품 판매가는 등록·수정 화면에서 입력할 수 없습니다. 등록 시 비어 있다가(`-`) 원가계산서가 최종 승인되면 책정됩니다.
+  - 제품 **수정 잠금**: 원가계산서를 최초 상신하면 수정할 수 없습니다(목록에 `수정불가`, 마우스를 올리면 사유 표시).
+    최초 상신이 반려·회수되면 다시 수정할 수 있지만, 판매가가 책정된 뒤에는 이후 상신이 반려돼도 계속 수정할 수 없습니다.
   - 판매가가 책정된 제품은 제품명을 클릭하면 **판매가 이력** 팝업(제품명 · 판매가 · 결재승인일자, 최신순)이 열립니다.
   - 코드는 **자동 채번, 수정 불가**: `{구분코드}-{4자리 순번}`, 같은 구분의 가장 큰 순번 + 1 (없으면 0001)
 
@@ -162,7 +164,7 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 | GET | `/api/users/approvers` | 결재권자 목록 |
 | GET/POST/PUT | `/api/materials`, `/api/materials/{id}` | 원재료·포장재 (코드 자동 채번) |
 | POST | `/api/materials/batch` | 원재료·포장재 일괄 등록 `{ items: [...] }` |
-| GET/POST/PUT | `/api/products`, `/api/products/{id}` | 제품 (코드 자동 채번, 판매가는 받지 않음) |
+| GET/POST/PUT | `/api/products`, `/api/products/{id}` | 제품 (코드 자동 채번, 판매가는 받지 않음, 잠긴 제품 수정 시 400) |
 | GET | `/api/products/{id}/price-history` | 제품 판매가 이력 (최종 승인된 원가계산서 기준, 최신순) |
 | GET | `/api/cost-sheets?scope=mine\|all&status=` | 원가계산서 목록 |
 | GET/PUT/DELETE | `/api/cost-sheets/{id}` | 상세 / 수정 / 삭제 |
@@ -180,7 +182,7 @@ H2 콘솔: http://localhost:8090/h2-console (JDBC URL `jdbc:h2:mem:foodcost`, �
 ## 테스트
 
 ```bash
-cd backend && ./mvnw test       # 원가 계산, 결재 흐름, 권한, 코드 채번, 제품 규격, 승인 판매가, 판매가 이력, 노무비·제조경비 0원 상신 차단 (30건)
+cd backend && ./mvnw test       # 원가 계산, 결재 흐름, 권한, 코드 채번, 제품 규격, 승인 판매가, 판매가 이력, 노무비·제조경비 0원 상신 차단, 제품 수정 잠금 (32건)
 cd web && npm run build      # 타입체크 + 빌드
 ```
 

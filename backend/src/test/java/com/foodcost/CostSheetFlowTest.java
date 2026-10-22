@@ -324,6 +324,40 @@ class CostSheetFlowTest {
     }
 
     @Test
+    void 제품은_최초_상신후_잠기고_반려되면_풀리며_판매가_책정후에는_계속_잠긴다() throws Exception {
+        String writer = login("writer");
+        String leader = login("leader");
+        long productId = json(mvc.perform(post("/api/products").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"잠금테스트\",\"specWeight\":100,\"specCount\":1}"))
+                .andExpect(status().isCreated())).get("id").asLong();
+        assertThat(product(writer, productId).get("editable").asBoolean()).isTrue();
+
+        // 최초 상신 → 잠금
+        long first = createSheetFor(writer, productId);
+        act(writer, first, "submit", null).andExpect(status().isOk());
+        assertThat(product(writer, productId).get("lockReason").asText()).isEqualTo("결재 진행 중인 원가계산서가 있어 수정할 수 없습니다.");
+        updateProduct(writer, productId).andExpect(status().isBadRequest());
+
+        // 최초 상신이 반려 → 다시 수정 가능
+        act(leader, first, "reject", "보완 필요").andExpect(status().isOk());
+        assertThat(product(writer, productId).get("editable").asBoolean()).isTrue();
+        updateProduct(writer, productId).andExpect(status().isOk());
+
+        // 재상신 후 승인 → 판매가 책정, 잠금
+        act(writer, first, "submit", null).andExpect(status().isOk());
+        approve(leader, first, 3000).andExpect(jsonPath("$.status").value("APPROVED"));
+        assertThat(product(writer, productId).get("lockReason").asText()).isEqualTo("판매가가 책정된 제품은 수정할 수 없습니다.");
+
+        // 판매가 책정 후의 상신이 반려돼도 계속 잠금
+        long second = createSheetFor(writer, productId);
+        act(writer, second, "submit", null).andExpect(status().isOk());
+        act(leader, second, "reject", "재검토").andExpect(status().isOk());
+        assertThat(product(writer, productId).get("editable").asBoolean()).isFalse();
+        updateProduct(writer, productId).andExpect(status().isBadRequest());
+    }
+
+    @Test
     void 결재권자는_기준정보를_수정할_수_없다() throws Exception {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)
@@ -347,6 +381,27 @@ class CostSheetFlowTest {
                         .content(om.writeValueAsString(sheetBody(defaultItems(token), approverIds))))
                 .andExpect(status().isCreated()));
         return res.get("id").asLong();
+    }
+
+    private long createSheetFor(String token, long productId) throws Exception {
+        Map<String, Object> body = new HashMap<>(sheetBody(defaultItems(token), List.of(userId(token, "leader"))));
+        body.put("productId", productId);
+        return json(mvc.perform(post("/api/cost-sheets").header("Authorization", token)
+                        .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(body)))
+                .andExpect(status().isCreated())).get("id").asLong();
+    }
+
+    private JsonNode product(String token, long productId) throws Exception {
+        for (JsonNode p : json(mvc.perform(get("/api/products").header("Authorization", token)))) {
+            if (p.get("id").asLong() == productId) return p;
+        }
+        throw new AssertionError("제품 없음: " + productId);
+    }
+
+    private ResultActions updateProduct(String token, long productId) throws Exception {
+        return mvc.perform(put("/api/products/" + productId).header("Authorization", token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"잠금테스트-수정\",\"specWeight\":100,\"specCount\":1}"));
     }
 
     private ResultActions approve(String token, long id, int salePrice) throws Exception {

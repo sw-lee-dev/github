@@ -58,11 +58,14 @@ public final class MasterDto {
     ) {
     }
 
+    /** editable/lockReason: 최초 상신 후(반려·회수 전) 또는 판매가 책정 후에는 수정 불가 */
     public record ProductResponse(Long id, String code, String name, BigDecimal specWeight, int specCount,
-                                  String spec, BigDecimal unitWeight, BigDecimal salePrice, boolean active) {
-        public static ProductResponse from(Product p) {
+                                  String spec, BigDecimal unitWeight, BigDecimal salePrice, boolean active,
+                                  boolean editable, String lockReason) {
+        public static ProductResponse from(Product p, boolean inApproval) {
+            String lockReason = p.lockReason(inApproval);
             return new ProductResponse(p.getId(), p.getCode(), p.getName(), p.getSpecWeight(), p.getSpecCount(),
-                    p.getSpec(), p.getUnitWeight(), p.getSalePrice(), p.isActive());
+                    p.getSpec(), p.getUnitWeight(), p.getSalePrice(), p.isActive(), lockReason == null, lockReason);
         }
     }
 }

@@ -146,15 +146,19 @@ export default function ProductsPage() {
                   <td className="text-end">{fmtInt(p.salePrice)}</td>
                   <td className="text-center">{p.active ? 'Y' : 'N'}</td>
                   {editable && (
-                    <td className="text-end">
-                      <button className="btn btn-sm btn-link" onClick={() => {
+                    <td className="text-end text-nowrap">
+                      {!p.editable ? (
+                        <span className="small text-muted px-2" title={p.lockReason ?? undefined} data-testid="product-locked">
+                          <i className="bi bi-lock me-1" />수정불가
+                        </span>
+                      ) : <button className="btn btn-sm btn-link" onClick={() => {
                         setEditingId(p.id);
                         setEditingCode(p.code);
                         setEditingPrice(p.salePrice);
                         setForm({ name: p.name, specWeight: p.specWeight, specCount: p.specCount, active: p.active });
                         setError(null);
                         setNotice(null);
-                      }}>수정</button>
+                      }}>수정</button>}
                     </td>
                   )}
                 </tr>

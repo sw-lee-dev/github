@@ -23,6 +23,9 @@ public interface CostSheetRepository extends JpaRepository<CostSheet, Long> {
             """)
     List<CostSheet> search(@Param("writerId") Long writerId, @Param("status") CostStatus status);
 
+    @Query("select distinct s.product.id from CostSheet s where s.status = :status")
+    List<Long> findProductIdsByStatus(@Param("status") CostStatus status);
+
     /** 제품의 판매가 이력: 최종 승인된 문서를 승인일시 최신순으로 */
     @Query("""
             select s from CostSheet s

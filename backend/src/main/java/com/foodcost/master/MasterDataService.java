@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +21,7 @@ public class MasterDataService {
 
     private final MaterialRepository materialRepository;
     private final ProductRepository productRepository;
+    private final ProductApprovalStatus productApprovalStatus;
 
     public List<MaterialResponse> materials() {
         return materialRepository.findAllByOrderByTypeAscCodeAsc().stream().map(MaterialResponse::from).toList();
@@ -63,7 +65,9 @@ public class MasterDataService {
     }
 
     public List<ProductResponse> products() {
-        return productRepository.findAllByOrderByCodeAsc().stream().map(ProductResponse::from).toList();
+        Set<Long> inApproval = productApprovalStatus.productIdsInApproval();
+        return productRepository.findAllByOrderByCodeAsc().stream()
+                .map(p -> ProductResponse.from(p, inApproval.contains(p.getId()))).toList();
     }
 
     @Transactional
@@ -72,14 +76,18 @@ public class MasterDataService {
         Product product = Product.builder()
                 .code(code).name(req.name()).specWeight(req.specWeight()).specCount(req.specCount())
                 .build();
-        return ProductResponse.from(productRepository.save(product));
+        return ProductResponse.from(productRepository.save(product), false);
     }
 
     @Transactional
     public ProductResponse updateProduct(Long id, ProductRequest req) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> ApiException.notFound("제품을 찾을 수 없습니다."));
+        String lockReason = product.lockReason(productApprovalStatus.productIdsInApproval().contains(id));
+        if (lockReason != null) {
+            throw ApiException.badRequest(lockReason);
+        }
         product.update(req.name(), req.specWeight(), req.specCount(), req.active() == null || req.active());
-        return ProductResponse.from(product);
+        return ProductResponse.from(product, false);
     }
 }

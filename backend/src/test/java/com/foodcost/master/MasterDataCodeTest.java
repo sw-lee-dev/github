@@ -80,13 +80,23 @@ class MasterDataCodeTest {
                 .andExpect(jsonPath("$.salePrice").isEmpty())
                 .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
         long id = new com.fasterxml.jackson.databind.ObjectMapper().readTree(res).get("id").asLong();
-        // 승인으로 책정된 FG-0001 판매가(4500)도 수정 요청으로는 바뀌지 않는다
-        mvc.perform(put("/api/products/1").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"버터쿠키\",\"specWeight\":20,\"specCount\":10,\"salePrice\":1}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.salePrice").value(4500));
         mvc.perform(put("/api/products/" + id).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(jsonPath("$.salePrice").isEmpty());
+    }
+
+    @Test
+    @WithMockUser(roles = "WRITER")
+    void 샘플_제품_잠금_상태() throws Exception {
+        // FG-0001: 판매가 책정 / FG-0002: 결재중 문서 있음 / FG-0003: 임시저장 문서만 있음
+        List<ProductResponse> products = service.products();
+        assertThat(products).extracting(ProductResponse::editable).containsExactly(false, false, true);
+        assertThat(products.get(0).lockReason()).isEqualTo("판매가가 책정된 제품은 수정할 수 없습니다.");
+        assertThat(products.get(1).lockReason()).isEqualTo("결재 진행 중인 원가계산서가 있어 수정할 수 없습니다.");
+        assertThat(products.get(2).lockReason()).isNull();
+        var res = mvc.perform(put("/api/products/1").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"이름변경\",\"specWeight\":20,\"specCount\":10}"))
+                .andExpect(status().isBadRequest()).andReturn().getResponse();
+        assertThat(res.getContentAsString(java.nio.charset.StandardCharsets.UTF_8)).contains("판매가가 책정된 제품은 수정할 수 없습니다.");
     }
 
     @Test
