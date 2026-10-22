@@ -196,6 +196,8 @@ export default function CostSheetFormPage() {
   /** 상신에 필요한 값(서버 CostSheet.submit 과 같은 조건). 빠진 항목과 해당 탭을 돌려준다. */
   const submitProblems = (): { tab: TabKey; msg: string }[] => {
     const problems: { tab: TabKey; msg: string }[] = [];
+    if (num(laborCost) <= 0) problems.push({ tab: 'basic', msg: '기본정보: 노무비를 입력하세요. (0원으로는 상신할 수 없습니다)' });
+    if (num(overheadCost) <= 0) problems.push({ tab: 'basic', msg: '기본정보: 제조경비를 입력하세요. (0원으로는 상신할 수 없습니다)' });
     if (!rawRows.some((r) => r.materialId) && !packRows.some((r) => r.materialId)) {
       problems.push({ tab: 'bom', msg: '배합비: 원자재 또는 포장자재를 1개 이상 입력하세요.' });
     }
@@ -312,12 +314,12 @@ export default function CostSheetFormPage() {
               onChange={(e) => setSalePrice(e.target.value)} required />
           </div>
           <div className="col-6 col-md-3">
-            <label className="form-label" htmlFor="labor">노무비(원/배치)</label>
+            <label className="form-label" htmlFor="labor">노무비(원/배치) *</label>
             <input id="labor" type="number" min={0} className="form-control text-end" value={laborCost}
               onChange={(e) => setLaborCost(e.target.value)} required />
           </div>
           <div className="col-6 col-md-3">
-            <label className="form-label" htmlFor="overhead">제조경비(원/배치)</label>
+            <label className="form-label" htmlFor="overhead">제조경비(원/배치) *</label>
             <input id="overhead" type="number" min={0} className="form-control text-end" value={overheadCost}
               onChange={(e) => setOverheadCost(e.target.value)} required />
             <div className="form-text">전력·가스·감가상각 등</div>

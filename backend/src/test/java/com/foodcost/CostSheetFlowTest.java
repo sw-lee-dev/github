@@ -153,6 +153,33 @@ class CostSheetFlowTest {
 
     @Test
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void 노무비나_제조경비가_0원이면_상신할_수_없다() throws Exception {
+        String writer = login("writer");
+        int before = json(mvc.perform(get("/api/cost-sheets?scope=mine").header("Authorization", writer))).size();
+        List<Long> line = List.of(userId(writer, "leader"));
+        for (String field : List.of("laborCost", "overheadCost")) {
+            Map<String, Object> body = new HashMap<>(sheetBody(defaultItems(writer), line));
+            body.put(field, 0);
+            JsonNode err = json(mvc.perform(post("/api/cost-sheets?submit=true").header("Authorization", writer)
+                            .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(body)))
+                    .andExpect(status().isBadRequest()));
+            assertThat(err.get("message").asText())
+                    .isEqualTo(("laborCost".equals(field) ? "노무비" : "제조경비") + "를 입력하세요. (0원으로는 상신할 수 없습니다)");
+        }
+        assertThat(json(mvc.perform(get("/api/cost-sheets?scope=mine").header("Authorization", writer))).size())
+                .isEqualTo(before);
+
+        // 임시저장은 0원이어도 되고, 그 문서를 상신하면 거부된다
+        Map<String, Object> draft = new HashMap<>(sheetBody(defaultItems(writer), line));
+        draft.put("laborCost", 0);
+        long id = json(mvc.perform(post("/api/cost-sheets").header("Authorization", writer)
+                        .contentType(MediaType.APPLICATION_JSON).content(om.writeValueAsString(draft)))
+                .andExpect(status().isCreated())).get("id").asLong();
+        act(writer, id, "submit", null).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void 수정후_상신이_실패하면_수정내용도_저장되지_않는다() throws Exception {
         String writer = login("writer");
         long id = createSheet(writer, List.of(userId(writer, "leader")));

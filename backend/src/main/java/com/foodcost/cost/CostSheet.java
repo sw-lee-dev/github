@@ -243,6 +243,13 @@ public class CostSheet extends BaseTimeEntity {
         if (items.isEmpty()) {
             throw ApiException.badRequest("원재료/포장재 품목을 1개 이상 입력하세요.");
         }
+        // 노무비·제조경비는 총원가에 반드시 들어가야 하므로 0원(기본값) 그대로는 상신할 수 없다
+        if (laborCost.signum() <= 0) {
+            throw ApiException.badRequest("노무비를 입력하세요. (0원으로는 상신할 수 없습니다)");
+        }
+        if (overheadCost.signum() <= 0) {
+            throw ApiException.badRequest("제조경비를 입력하세요. (0원으로는 상신할 수 없습니다)");
+        }
         if (steps.isEmpty()) {
             throw ApiException.badRequest("결재선을 지정하세요.");
         }
