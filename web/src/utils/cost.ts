@@ -7,6 +7,7 @@
  *         금액   = 투입량 × 단가,  원자재 합계 = Σ 금액
  * 원재료비       = 원자재 합계 ÷ (1 − 원재료 손실률%)
  * 포장자재 금액  = 투입량 × 단가 × (1 + 손실률%)  (투입량은 배치 생산량 기준)
+ * 원자재 투입량 합계(kg) = Σ 투입량 × 1 단위당 kg   (kg 1, g 0.001, 그 외 단위는 자재 비중)
  * 총원가         = 원재료비 + 포장재비 + 노무비 + 제조경비  (노무비·제조경비가 0원이면 상신 불가)
  */
 const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 ** digits;
@@ -25,6 +26,19 @@ export const totalInputKg = (totalKg: number, rawLossRate: number) => {
 export function rawQuantity(totalKg: number, ratio: number, unit: string) {
   const kg = ((totalKg || 0) * (ratio || 0)) / 100;
   return round(unit.toLowerCase() === 'g' ? kg * 1000 : kg, 4);
+}
+
+const unitKey = (unit: string) => unit.trim().toLowerCase();
+
+/** 비중 입력 대상: kg·g 이 아닌 단위의 원재료 (서버 Material.requiresGravity 와 동일) */
+export const requiresGravity = (type: string, unit: string) =>
+  type === 'RAW' && unitKey(unit) !== 'kg' && unitKey(unit) !== 'g';
+
+/** 1 단위당 kg. kg → 1, g → 0.001, 그 외 → 비중 (없으면 null) */
+export function kgPerUnit(unit: string, specificGravity: number | null | undefined) {
+  if (unitKey(unit) === 'kg') return 1;
+  if (unitKey(unit) === 'g') return 0.001;
+  return specificGravity ?? null;
 }
 
 /** 금액은 원 단위 소수 둘째자리로 반올림 (서버 CostSheetItem 과 동일) */

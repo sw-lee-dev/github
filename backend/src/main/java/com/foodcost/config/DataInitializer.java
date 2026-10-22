@@ -84,7 +84,7 @@ public class DataInitializer implements ApplicationRunner {
                 material("다크초콜릿칩", MaterialType.RAW, "kg", 11_200),
                 material("강력분", MaterialType.RAW, "kg", 1_250),
                 material("이스트", MaterialType.RAW, "kg", 9_800),
-                material("흰우유", MaterialType.RAW, "L", 1_900),
+                new MaterialRequest("흰우유", MaterialType.RAW, "L", BigDecimal.valueOf(1_900), new BigDecimal("1.03"), true),
                 material("개별포장필름", MaterialType.PACKAGING, "EA", 18),
                 material("쿠키 트레이", MaterialType.PACKAGING, "EA", 45),
                 material("단상자(200g)", MaterialType.PACKAGING, "EA", 210),
@@ -95,7 +95,7 @@ public class DataInitializer implements ApplicationRunner {
     }
 
     private static MaterialRequest material(String name, MaterialType type, String unit, long price) {
-        return new MaterialRequest(name, type, unit, BigDecimal.valueOf(price), true);
+        return new MaterialRequest(name, type, unit, BigDecimal.valueOf(price), null, true);
     }
 
     /** 제품코드는 서비스에서 자동 채번된다: FG-0001~FG-0003. 판매가는 비어 있다가 원가계산서 최종 승인 시 책정 */

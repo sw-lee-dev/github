@@ -124,6 +124,31 @@ class MasterDataCodeTest {
     }
 
     @Test
+    void kg_g이_아닌_원재료는_비중이_필요하다() {
+        assertThatThrownBy(() -> service.createMaterials(List.of(
+                new MaterialRequest("물엿", MaterialType.RAW, "L", BigDecimal.valueOf(3000), null, true))))
+                .isInstanceOf(ApiException.class)
+                .hasMessage("물엿: kg 단위가 아닌 원재료는 비중(1 L당 kg)을 입력하세요.");
+        List<MaterialResponse> created = service.createMaterials(List.of(
+                new MaterialRequest("물엿", MaterialType.RAW, "L", BigDecimal.valueOf(3000), new BigDecimal("1.4"), true),
+                new MaterialRequest("바닐라오일", MaterialType.RAW, "g", BigDecimal.valueOf(50), null, true),
+                new MaterialRequest("설탕(kg)", MaterialType.RAW, "KG", BigDecimal.valueOf(1500), new BigDecimal("2"), true),
+                new MaterialRequest("라벨", MaterialType.PACKAGING, "EA", BigDecimal.TEN, null, true)));
+        assertThat(created.get(0).specificGravity()).isEqualByComparingTo("1.4");
+        // g·kg 원재료, 포장재는 비중을 쓰지 않는다 (보내도 저장 안 함)
+        assertThat(created.subList(1, 4)).extracting(MaterialResponse::specificGravity).containsOnlyNulls();
+        // 샘플 흰우유(L)는 비중 1.03
+        assertThat(service.materials()).filteredOn(m -> m.name().equals("흰우유"))
+                .extracting(MaterialResponse::specificGravity).first()
+                .satisfies(g -> assertThat((BigDecimal) g).isEqualByComparingTo("1.03"));
+        // 수정으로 단위를 L 로 바꿀 때도 비중 필요
+        Long id = created.get(2).id();
+        assertThatThrownBy(() -> service.updateMaterial(id,
+                new MaterialRequest("설탕(kg)", MaterialType.RAW, "L", BigDecimal.valueOf(1500), null, true)))
+                .isInstanceOf(ApiException.class);
+    }
+
+    @Test
     void 규격은_g_x_EA_로_저장되고_제품_당_무게가_자동_계산된다() {
         ProductResponse p = service.createProduct(new ProductRequest("미니쿠키", BigDecimal.valueOf(25), 8, true));
         assertThat(p.spec()).isEqualTo("25g × 8EA");
@@ -193,6 +218,6 @@ class MasterDataCodeTest {
     }
 
     private static MaterialRequest material(String name, MaterialType type) {
-        return new MaterialRequest(name, type, "kg", BigDecimal.valueOf(1000), true);
+        return new MaterialRequest(name, type, "kg", BigDecimal.valueOf(1000), null, true);
     }
 }

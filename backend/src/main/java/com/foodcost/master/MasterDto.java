@@ -23,6 +23,9 @@ public final class MasterDto {
             @NotNull(message = "자재구분을 선택하세요.") MaterialType type,
             @NotBlank(message = "단위를 입력하세요.") @Size(max = 10) String unit,
             @NotNull(message = "단가를 입력하세요.") @DecimalMin(value = "0", message = "단가는 0 이상이어야 합니다.") BigDecimal unitPrice,
+            /** 비중(1 단위당 kg). kg·g 이 아닌 원재료만 필수 */
+            @DecimalMin(value = "0", inclusive = false, message = "비중은 0보다 커야 합니다.")
+            @Digits(integer = 8, fraction = 4, message = "비중은 소수 넷째자리까지 입력할 수 있습니다.") BigDecimal specificGravity,
             Boolean active
     ) {
     }
@@ -37,11 +40,11 @@ public final class MasterDto {
 
     public record MaterialResponse(
             Long id, String code, String name, MaterialType type, String typeLabel,
-            String unit, BigDecimal unitPrice, boolean active
+            String unit, BigDecimal unitPrice, BigDecimal specificGravity, boolean active
     ) {
         public static MaterialResponse from(Material m) {
             return new MaterialResponse(m.getId(), m.getCode(), m.getName(), m.getType(), m.getType().getLabel(),
-                    m.getUnit(), m.getUnitPrice(), m.isActive());
+                    m.getUnit(), m.getUnitPrice(), m.getSpecificGravity(), m.isActive());
         }
     }
 

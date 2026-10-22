@@ -73,6 +73,8 @@ export interface MaterialPayload {
   type: MaterialType;
   unit: string;
   unitPrice: number;
+  /** 비중(1 단위당 kg). kg·g 이 아닌 원재료만 필수 */
+  specificGravity: number | null;
   active: boolean;
 }
 

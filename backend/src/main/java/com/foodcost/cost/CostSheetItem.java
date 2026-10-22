@@ -1,5 +1,6 @@
 package com.foodcost.cost;
 
+import com.foodcost.common.ApiException;
 import com.foodcost.master.Material;
 import com.foodcost.master.MaterialType;
 import jakarta.persistence.*;
@@ -68,6 +69,14 @@ public class CostSheetItem {
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal lossRate;
 
+    /** 원자재 1 단위당 kg (작성 시점 스냅샷). kg → 1, g → 0.001, 그 외 → 자재 비중 */
+    @Column(precision = 12, scale = 4)
+    private BigDecimal kgPerUnit;
+
+    /** 원자재 투입량의 kg 환산 = 투입량 × kgPerUnit */
+    @Column(precision = 15, scale = 3)
+    private BigDecimal quantityKg;
+
     /** 금액(원, 소수 둘째자리 반올림) */
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal amount;
@@ -78,6 +87,11 @@ public class CostSheetItem {
         CostSheetItem item = new CostSheetItem(costSheet, lineNo, material, unitPrice, BigDecimal.ZERO);
         item.ratio = ratio;
         item.quantity = rawQuantity(totalOutputKg, ratio, material.getUnit());
+        item.kgPerUnit = material.kgPerUnit();
+        if (item.kgPerUnit == null) {
+            throw ApiException.badRequest(material.getName() + ": 원재료의 비중이 없습니다. 원재료·포장재 화면에서 비중을 입력하세요.");
+        }
+        item.quantityKg = item.quantity.multiply(item.kgPerUnit).setScale(3, RoundingMode.HALF_UP);
         item.amount = item.quantity.multiply(unitPrice).setScale(2, RoundingMode.HALF_UP);
         return item;
     }

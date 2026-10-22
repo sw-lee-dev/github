@@ -40,23 +40,54 @@ public class Material extends BaseTimeEntity {
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal unitPrice;
 
+    /**
+     * 비중 = 1 단위당 kg (예: 흰우유 1 L = 1.03 kg). kg·g 이 아닌 원재료만 입력하며,
+     * 원가계산서의 원자재 투입량 합계를 kg 으로 환산할 때 곱한다.
+     */
+    @Column(precision = 12, scale = 4)
+    private BigDecimal specificGravity;
+
     @Column(nullable = false)
     private boolean active = true;
 
     @Builder
-    private Material(String code, String name, MaterialType type, String unit, BigDecimal unitPrice) {
+    private Material(String code, String name, MaterialType type, String unit, BigDecimal unitPrice,
+                     BigDecimal specificGravity) {
         this.code = code;
         this.name = name;
         this.type = type;
         this.unit = unit;
         this.unitPrice = unitPrice;
+        this.specificGravity = requiresGravity(type, unit) ? specificGravity : null;
     }
 
-    public void update(String name, MaterialType type, String unit, BigDecimal unitPrice, boolean active) {
+    public void update(String name, MaterialType type, String unit, BigDecimal unitPrice, BigDecimal specificGravity,
+                       boolean active) {
         this.name = name;
         this.type = type;
         this.unit = unit;
         this.unitPrice = unitPrice;
+        this.specificGravity = requiresGravity(type, unit) ? specificGravity : null;
         this.active = active;
+    }
+
+    /** 비중 입력 대상: kg·g 이 아닌 단위의 원재료 (g 은 1/1000 로 자동 환산) */
+    public static boolean requiresGravity(MaterialType type, String unit) {
+        return type == MaterialType.RAW && !isKg(unit) && !"g".equalsIgnoreCase(unit.trim());
+    }
+
+    private static boolean isKg(String unit) {
+        return "kg".equalsIgnoreCase(unit.trim());
+    }
+
+    /** 1 단위당 kg. kg → 1, g → 0.001, 그 외 → 비중 (없으면 null) */
+    public BigDecimal kgPerUnit() {
+        if (isKg(unit)) {
+            return BigDecimal.ONE;
+        }
+        if ("g".equalsIgnoreCase(unit.trim())) {
+            return new BigDecimal("0.001");
+        }
+        return specificGravity;
     }
 }

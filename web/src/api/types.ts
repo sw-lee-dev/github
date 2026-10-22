@@ -27,6 +27,8 @@ export interface Material {
   typeLabel: string;
   unit: string;
   unitPrice: number;
+  /** 비중 = 1 단위당 kg. kg·g 이 아닌 원재료만 있음 */
+  specificGravity: number | null;
   active: boolean;
 }
 
@@ -91,6 +93,10 @@ export interface CostSheetItem {
   /** 배합비(%) - 원자재만 */
   ratio: number | null;
   quantity: number;
+  /** 원자재 1 단위당 kg (kg 1, g 0.001, 그 외 비중) */
+  kgPerUnit: number | null;
+  /** 원자재 투입량의 kg 환산 */
+  quantityKg: number | null;
   unitPrice: number;
   lossRate: number;
   amount: number;
@@ -144,6 +150,8 @@ export interface CostSheetDetail {
   rawLossRate: number;
   /** 총 투입량(kg) = 총 생산량 ÷ (1 − 원재료 손실률%) */
   totalInput: number;
+  /** 원자재 투입량 합계(kg, 비중으로 환산) */
+  rawInputKg: number;
   /** 원자재 합계(손실 반영 전) */
   rawSubtotal: number;
   salePrice: number;

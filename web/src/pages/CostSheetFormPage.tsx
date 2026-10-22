@@ -4,7 +4,7 @@ import { api } from '../api/client';
 import type { CostSheetSaveRequest, Material, Product, User } from '../api/types';
 import CostSummaryCards from '../components/CostSummaryCards';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
-import { calcCost, packagingAmount, rawAmount, rawMaterialCost, rawQuantity, totalInputKg, totalOutputKg } from '../utils/cost';
+import { calcCost, kgPerUnit, packagingAmount, rawAmount, rawMaterialCost, rawQuantity, totalInputKg, totalOutputKg } from '../utils/cost';
 import { fmtInt, fmtNum, fmtWeight, fmtWon } from '../utils/format';
 
 /** 원자재: 배합비(%)로 입력, 투입량은 총 생산량 × 배합비로 자동 계산 (손실은 기본정보의 원재료 손실률로 반영) */
@@ -106,9 +106,11 @@ export default function CostSheetFormPage() {
 
   // 원자재 행별 투입량/금액, 포장자재 행별 금액
   const rawCalc = useMemo(() => rawRows.map((r) => {
-    const unit = materialById.get(Number(r.materialId))?.unit ?? 'kg';
+    const m = materialById.get(Number(r.materialId));
+    const unit = m?.unit ?? 'kg';
     const quantity = r.materialId ? rawQuantity(totalKg, num(r.ratio), unit) : 0;
-    return { unit, quantity, amount: rawAmount(quantity, num(r.unitPrice)) };
+    const quantityKg = quantity * (m ? kgPerUnit(unit, m.specificGravity) ?? 0 : 0);
+    return { unit, quantity, quantityKg, amount: rawAmount(quantity, num(r.unitPrice)) };
   }), [rawRows, materialById, totalKg]);
   const packCalc = useMemo(() => packRows.map((r) => ({
     unit: materialById.get(Number(r.materialId))?.unit ?? '단위',
@@ -116,6 +118,8 @@ export default function CostSheetFormPage() {
   })), [packRows, materialById]);
 
   const ratioSum = Math.round(rawRows.filter((r) => r.materialId).reduce((acc, r) => acc + num(r.ratio), 0) * 1000) / 1000;
+  /** 원자재 투입량 합계(kg): kg 이 아닌 자재는 비중으로 환산 */
+  const rawInputKg = Math.round(rawCalc.reduce((acc, c) => acc + Math.round(c.quantityKg * 1000) / 1000, 0) * 1000) / 1000;
   const rawSubtotal = Math.round(rawCalc.reduce((acc, c) => acc + c.amount, 0) * 100) / 100;
   const materialCost = rawMaterialCost(rawSubtotal, num(rawLossRate));
   const packagingCost = packCalc.reduce((acc, c) => acc + c.amount, 0);
@@ -427,7 +431,10 @@ export default function CostSheetFormPage() {
                 <span className="cell-label">배합비(%)</span>
                 <span data-testid="ratio-sum">{ratioSum.toFixed(2)}</span>
               </div>
-              <div className="bom-cell d-none d-md-block" />
+              <div className="bom-cell text-end fw-semibold" title="kg 이 아닌 원재료는 비중을 곱해 kg 으로 환산한 합계">
+                <span className="cell-label">투입량 합계</span>
+                <span data-testid="raw-input-kg">{fmtWeight(rawInputKg)}</span> kg
+              </div>
               <div className="bom-cell d-none d-md-block" />
               <div className="bom-cell text-end fw-semibold" title={`원자재 금액 합계 ${fmtWon(rawSubtotal)}원 ÷ (1 − 원재료 손실률 ${fmtNum(num(rawLossRate))}%)`}>
                 <span className="cell-label">금액(원) · 손실률 반영</span>

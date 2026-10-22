@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, type MaterialPayload } from '../api/client';
 import type { Material, MaterialType } from '../api/types';
 import { canManageMaster, useAuth } from '../auth/AuthContext';
+import GravityModal, { type GravityRow } from '../components/GravityModal';
 import { ErrorAlert, Loading, errMsg } from '../components/Loading';
+import { requiresGravity } from '../utils/cost';
 import { MATERIAL_CODE_PREFIX, formatCode, maxSeq } from '../utils/code';
 import { fmtWon } from '../utils/format';
 
@@ -13,7 +15,7 @@ interface NewRow extends MaterialPayload {
 let rowSeq = 0;
 const DEFAULT_UNIT: Record<MaterialType, string> = { RAW: 'kg', PACKAGING: 'EA' };
 const newRow = (type: MaterialType): NewRow => ({
-  key: ++rowSeq, name: '', type, unit: DEFAULT_UNIT[type], unitPrice: 0, active: true,
+  key: ++rowSeq, name: '', type, unit: DEFAULT_UNIT[type], unitPrice: 0, specificGravity: null, active: true,
 });
 
 export default function MaterialsPage() {
@@ -27,6 +29,9 @@ export default function MaterialsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** 비중 입력 팝업: kg·g 이 아닌 원재료를 저장하기 전에 띄운다 */
+  const [gravity, setGravity] = useState<{ rows: GravityRow[]; save: (values: Map<number, number>) => void } | null>(null);
+  const closeGravity = useCallback(() => setGravity(null), []);
 
   const load = () => api.materials().then(setRows).catch((e) => setError(errMsg(e)));
   useEffect(() => { load(); }, []);
@@ -52,44 +57,79 @@ export default function MaterialsPage() {
   const updateRow = (key: number, patch: Partial<MaterialPayload>) =>
     setNewRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
 
-  const saveNew = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitNew = async (rowsToSave: NewRow[]) => {
     setBusy(true);
     setError(null);
     try {
-      const created = await api.createMaterials(newRows.map(({ key: _key, ...payload }) => payload));
+      const created = await api.createMaterials(rowsToSave.map(({ key: _key, ...payload }) => (
+        { ...payload, specificGravity: requiresGravity(payload.type, payload.unit) ? payload.specificGravity : null })));
       setNewRows([]);
+      setGravity(null);
       setNotice(`${created.length}건 등록: ${created.map((m) => m.code).join(', ')}`);
       load();
     } catch (err) {
+      setGravity(null);
       setError(errMsg(err));
     } finally {
       setBusy(false);
     }
+  };
+
+  const saveNew = (e: FormEvent) => {
+    e.preventDefault();
+    const need = newRows.filter((r) => requiresGravity(r.type, r.unit));
+    if (need.length === 0) {
+      submitNew(newRows);
+      return;
+    }
+    setGravity({
+      rows: need.map((r) => ({ key: r.key, name: r.name, unit: r.unit.trim(), value: r.specificGravity })),
+      save: (values) => {
+        const withGravity = newRows.map((r) => (values.has(r.key) ? { ...r, specificGravity: values.get(r.key)! } : r));
+        setNewRows(withGravity);
+        submitNew(withGravity);
+      },
+    });
   };
 
   const openEdit = (m: Material) => {
     setNewRows([]);
     setNotice(null);
     setError(null);
-    setEditing({ id: m.id, code: m.code, form: { name: m.name, type: m.type, unit: m.unit, unitPrice: m.unitPrice, active: m.active } });
+    setEditing({ id: m.id, code: m.code, form: { name: m.name, type: m.type, unit: m.unit, unitPrice: m.unitPrice, specificGravity: m.specificGravity, active: m.active } });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const saveEdit = async (e: FormEvent) => {
-    e.preventDefault();
+  const submitEdit = async (form: MaterialPayload) => {
     if (!editing) return;
     setBusy(true);
     try {
-      await api.updateMaterial(editing.id, editing.form);
+      await api.updateMaterial(editing.id, form);
       setNotice(`${editing.code} 수정 완료`);
       setEditing(null);
+      setGravity(null);
       load();
     } catch (err) {
+      setGravity(null);
       setError(errMsg(err));
     } finally {
       setBusy(false);
     }
+  };
+
+  const saveEdit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!editing) return;
+    const { form } = editing;
+    if (!requiresGravity(form.type, form.unit)) {
+      submitEdit({ ...form, specificGravity: null });
+      return;
+    }
+    // 단위가 kg·g 이 아니면 비중 팝업 (기존 비중을 미리 채움)
+    setGravity({
+      rows: [{ key: editing.id, name: form.name, unit: form.unit.trim(), value: form.specificGravity }],
+      save: (values) => submitEdit({ ...form, specificGravity: values.get(editing.id)! }),
+    });
   };
 
   const shown = (rows ?? []).filter(
@@ -239,7 +279,7 @@ export default function MaterialsPage() {
           <table className="table table-hover table-sm align-middle mb-0">
             <thead className="table-light">
               <tr>
-                <th>코드</th><th>자재명</th><th>구분</th><th>단위</th><th className="text-end">단가(원)</th><th className="text-center">사용여부</th>
+                <th>코드</th><th>자재명</th><th>구분</th><th>단위</th><th className="text-end" title="1 단위당 kg (kg·g 이 아닌 원재료)">비중</th><th className="text-end">단가(원)</th><th className="text-center">사용여부</th>
                 {editable && <th />}
               </tr>
             </thead>
@@ -250,6 +290,9 @@ export default function MaterialsPage() {
                   <td>{m.name}</td>
                   <td><span className={`badge ${m.type === 'RAW' ? 'bar-raw' : 'bar-pack'}`}>{m.typeLabel}</span></td>
                   <td>{m.unit}</td>
+                  <td className="text-end" title={m.specificGravity != null ? `1 ${m.unit} = ${m.specificGravity} kg` : undefined}>
+                    {m.specificGravity != null ? Number(m.specificGravity) : '-'}
+                  </td>
                   <td className="text-end">{fmtWon(m.unitPrice)}</td>
                   <td className="text-center">{m.active ? 'Y' : 'N'}</td>
                   {editable && (
@@ -263,6 +306,7 @@ export default function MaterialsPage() {
           </table>
         </div>
       )}
+      {gravity && <GravityModal rows={gravity.rows} busy={busy} onConfirm={gravity.save} onCancel={closeGravity} />}
       <p className="form-text mt-2">단가를 바꿔도 이미 작성된 원가계산서에는 반영되지 않습니다. (작성 시점 단가로 보관)</p>
     </>
   );

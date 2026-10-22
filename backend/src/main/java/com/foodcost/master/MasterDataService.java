@@ -39,6 +39,7 @@ public class MasterDataService {
     @Transactional
     public List<MaterialResponse> createMaterials(List<MaterialRequest> requests) {
         Map<MaterialType, Integer> lastSeq = new EnumMap<>(MaterialType.class);
+        requests.forEach(MasterDataService::checkGravity);
         return requests.stream().map(req -> {
             String prefix = req.type().getCodePrefix();
             int seq = lastSeq.computeIfAbsent(req.type(),
@@ -47,7 +48,7 @@ public class MasterDataService {
 
             Material material = Material.builder()
                     .code(CodeSequence.format(prefix, seq)).name(req.name()).type(req.type())
-                    .unit(req.unit()).unitPrice(req.unitPrice())
+                    .unit(req.unit()).unitPrice(req.unitPrice()).specificGravity(req.specificGravity())
                     .build();
             return MaterialResponse.from(materialRepository.save(material));
         }).toList();
@@ -60,8 +61,18 @@ public class MasterDataService {
         if (material.getType() != req.type()) {
             throw ApiException.badRequest("자재 구분은 변경할 수 없습니다. (자재코드가 구분에 따라 정해집니다)");
         }
-        material.update(req.name(), req.type(), req.unit(), req.unitPrice(), req.active() == null || req.active());
+        checkGravity(req);
+        material.update(req.name(), req.type(), req.unit(), req.unitPrice(), req.specificGravity(),
+                req.active() == null || req.active());
         return MaterialResponse.from(material);
+    }
+
+    /** kg·g 이 아닌 원재료는 투입량을 kg 으로 환산할 비중이 있어야 한다 */
+    private static void checkGravity(MaterialRequest req) {
+        if (Material.requiresGravity(req.type(), req.unit()) && req.specificGravity() == null) {
+            throw ApiException.badRequest(req.name() + ": kg 단위가 아닌 원재료는 비중(1 " + req.unit().trim()
+                    + "당 kg)을 입력하세요.");
+        }
     }
 
     public List<ProductResponse> products() {

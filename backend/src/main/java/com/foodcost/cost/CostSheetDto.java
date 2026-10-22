@@ -100,6 +100,7 @@ public final class CostSheetDto {
             BigDecimal totalOutput,
             BigDecimal rawLossRate,
             BigDecimal totalInput,
+            BigDecimal rawInputKg,
             BigDecimal rawSubtotal,
             BigDecimal salePrice,
             BigDecimal materialCost,
@@ -127,7 +128,7 @@ public final class CostSheetDto {
             return new Detail(s.getId(), s.getDocNo(), s.getTitle(),
                     s.getProduct().getId(), s.getProduct().getCode(), s.getProduct().getName(), s.getProduct().getSpec(),
                     s.getProductionQty(), s.getUnitWeight(), s.getTotalOutput(),
-                    s.getRawLossRate(), s.getTotalInput(), s.getRawSubtotal(), s.getSalePrice(),
+                    s.getRawLossRate(), s.getTotalInput(), s.getRawInputKg(), s.getRawSubtotal(), s.getSalePrice(),
                     s.getMaterialCost(), s.getPackagingCost(), s.getLaborCost(), s.getOverheadCost(),
                     s.getTotalCost(), s.getUnitCost(), s.getApprovedSalePrice(), s.getMarginRate(), s.getRemark(),
                     s.getStatus(), s.getStatus().getLabel(),
@@ -142,12 +143,14 @@ public final class CostSheetDto {
 
     public record Item(
             Long id, int lineNo, Long materialId, String materialName, MaterialType materialType, String materialTypeLabel,
-            String unit, BigDecimal ratio, BigDecimal quantity, BigDecimal unitPrice, BigDecimal lossRate, BigDecimal amount
+            String unit, BigDecimal ratio, BigDecimal quantity, BigDecimal kgPerUnit, BigDecimal quantityKg,
+            BigDecimal unitPrice, BigDecimal lossRate, BigDecimal amount
     ) {
         static Item from(CostSheetItem i) {
             return new Item(i.getId(), i.getLineNo(), i.getMaterial().getId(), i.getMaterialName(),
                     i.getMaterialType(), i.getMaterialType().getLabel(), i.getUnit(),
-                    i.getRatio(), i.getQuantity(), i.getUnitPrice(), i.getLossRate(), i.getAmount());
+                    i.getRatio(), i.getQuantity(), i.getKgPerUnit(), i.getQuantityKg(),
+                    i.getUnitPrice(), i.getLossRate(), i.getAmount());
         }
     }
 

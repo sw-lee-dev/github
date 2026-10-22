@@ -358,6 +358,24 @@ class CostSheetFlowTest {
     }
 
     @Test
+    void 원자재_투입량_합계는_비중으로_kg_환산한다() throws Exception {
+        String writer = login("writer");
+        // 1번(버터쿠키): 모두 kg → 총 생산량 400kg 과 같음
+        mvc.perform(get("/api/cost-sheets/1").header("Authorization", writer))
+                .andExpect(jsonPath("$.rawInputKg").value(400.0));
+        // 4번(우유식빵): 흰우유 372 L × 비중 1.03 = 383.16 kg, 나머지 kg 합 828 → 1,211.16 kg
+        JsonNode sheet = json(mvc.perform(get("/api/cost-sheets/4").header("Authorization", writer)));
+        assertThat(sheet.get("rawInputKg").decimalValue()).isEqualByComparingTo("1211.16");
+        for (JsonNode item : sheet.get("items")) {
+            if (item.get("materialName").asText().equals("흰우유")) {
+                assertThat(item.get("quantity").decimalValue()).isEqualByComparingTo("372");
+                assertThat(item.get("kgPerUnit").decimalValue()).isEqualByComparingTo("1.03");
+                assertThat(item.get("quantityKg").decimalValue()).isEqualByComparingTo("383.16");
+            }
+        }
+    }
+
+    @Test
     void 결재권자는_기준정보를_수정할_수_없다() throws Exception {
         String leader = login("leader");
         mvc.perform(post("/api/products").header("Authorization", leader)

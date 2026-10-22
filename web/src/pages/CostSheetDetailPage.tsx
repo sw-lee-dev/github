@@ -209,7 +209,7 @@ export default function CostSheetDetailPage() {
       <CostSummaryCards {...sheet} />
 
       <ItemTable title="원자재" raw items={sheet.items.filter((i) => i.materialType === 'RAW')} total={sheet.materialCost}
-        subtotal={sheet.rawSubtotal} rawLossRate={sheet.rawLossRate} />
+        subtotal={sheet.rawSubtotal} rawLossRate={sheet.rawLossRate} inputKg={sheet.rawInputKg} />
       <ItemTable title="포장자재" items={sheet.items.filter((i) => i.materialType === 'PACKAGING')} total={sheet.packagingCost} />
 
       <div className="card shadow-sm mb-3">
@@ -246,8 +246,10 @@ export default function CostSheetDetailPage() {
  * 원자재(raw)는 배합비 열을 보여주고 손실률 열은 없다.
  * 원자재 합계(subtotal)에 원재료 손실률을 반영한 값이 원재료비(total)다.
  */
-function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate }: {
+function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate, inputKg }: {
   title: string; items: CostSheetItem[]; total: number; raw?: boolean; subtotal?: number; rawLossRate?: number;
+  /** 원자재 투입량 합계(kg, 비중 환산) */
+  inputKg?: number;
 }) {
   if (items.length === 0) return null;
   const ratioSum = items.reduce((acc, i) => acc + (i.ratio ?? 0), 0);
@@ -300,7 +302,10 @@ function ItemTable({ title, items, total, raw = false, subtotal, rawLossRate }: 
               <tr className="fw-semibold">
                 <td>합계</td>
                 <td className="text-end">{ratioSum.toFixed(2)}%</td>
-                <td colSpan={2} />
+                <td className="text-end text-nowrap" data-testid="raw-input-kg" title="kg 이 아닌 원재료는 비중을 곱해 kg 으로 환산한 합계">
+                  {fmtWeight(inputKg)} kg
+                </td>
+                <td />
                 <td className="text-end" title={`원자재 금액 합계 ${fmtWon(subtotal)}원 ÷ (1 − 원재료 손실률 ${fmtNum(rawLossRate)}%)`}>
                   {fmtWon(total)}
                 </td>

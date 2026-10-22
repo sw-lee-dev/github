@@ -97,6 +97,10 @@ public class CostSheet extends BaseTimeEntity {
     @Column(length = 2000)
     private String remark;
 
+    /** 원자재 투입량 합계(kg) = Σ 원자재 투입량 × 1 단위당 kg (kg 이 아닌 자재는 비중으로 환산) */
+    @Column(nullable = false, precision = 15, scale = 3)
+    private BigDecimal rawInputKg = BigDecimal.ZERO;
+
     /** 원자재 합계(손실 반영 전) = Σ 원자재 품목 금액 */
     @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal rawSubtotal = BigDecimal.ZERO;
@@ -212,6 +216,10 @@ public class CostSheet extends BaseTimeEntity {
 
     public void recalculate() {
         rawSubtotal = sumAmount(MaterialType.RAW);
+        rawInputKg = items.stream()
+                .filter(i -> i.getMaterialType() == MaterialType.RAW)
+                .map(CostSheetItem::getQuantityKg)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         materialCost = rawSubtotal.divide(rawYield(), 2, RoundingMode.HALF_UP);
         packagingCost = sumAmount(MaterialType.PACKAGING);
         totalCost = materialCost.add(packagingCost).add(laborCost).add(overheadCost);
